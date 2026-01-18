@@ -1,6 +1,7 @@
 ---
 title: "Отчёт"
 output:
+  word_document: default
   html_document:
     df_print: paged
 date: "2026-01-18"
@@ -194,7 +195,7 @@ final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 ```
 
 
-```{r VAS_rest}
+```{r}
 library(flextable)
 globaldec <- ","
 globaldig <- 2
@@ -369,15 +370,8 @@ results <- my_data %>%
          estimate2=round(estimate2, 2)
          ) %>% 
   select(VISIT, `p-value`, `Оценка (97.5% ДИ)`, estimate1, estimate2) %>%
-  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности боли по ВАШ (мм)`=VISIT) %>% 
+  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности боли по ВАШ (мм)`=VISIT)
   
-  
-
-
-```
-
-
-```{r VAS_rest}
 
 ```
 
