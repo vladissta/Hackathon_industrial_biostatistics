@@ -11,21 +11,49 @@ library(tidyverse)
 library(gtsummary)
 library(readxl)
 library(flextable)
+```
+
+```{r load, message=FALSE}
+raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
+specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet = 1) 
+```
+
+# Характеристики пациентов
+## Демография и иные исходные характеристики
+
+```{r dm}
 
 ```
 
-```{r, message=FALSE}
-df <- read_csv('data/raw/team6_ecrf_wide.csv')
-specs <- 
-  read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet = 1) 
+# Анализ эффективности
+## Интенсивность боли по ВАШ (в покое)
 
+```{r VAS_rest}
 
 ```
 
-# Описательная статистика жвп по визитам
+## Интенсивность боли по ВАШ (после нагрузки)
 
-```{r}
+```{r VAS_20m}
 
+```
+
+# Анализ безопасности
+## ЭКГ
+
+```{r ecg}
+
+```
+
+## Клинический анализ крови
+
+```{r oak}
+
+```
+
+## Жизненно-важные показатели
+
+```{r vs}
 n_patients = df %>% nrow()
 
 denom_by_arm <- df_vit %>%
@@ -63,7 +91,6 @@ tab_wide <- tab_full %>%
           factor(value, levels = c("Норма","Отклонение от нормы"))) %>% 
   mutate(VISIT = paste0("Визит ", VISIT))
 
-
 ```
 
 ```{r}
@@ -85,8 +112,4 @@ flextable(tab_wide) %>%
   merge_v(j = c("PARAM","VISIT")) %>%
   theme_vanilla() %>%
   autofit()
-
-
-```
-
 
