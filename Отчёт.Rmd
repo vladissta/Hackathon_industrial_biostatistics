@@ -204,6 +204,9 @@ res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes,
 res_final <- res_obs %>% 
   bind_rows(res_ch)
 
+VAS_table <- res_final %>% 
+  pivot_wider(id_cols = c(VISIT, GROUP, PARAM), names_from = "VAR", values_from = "VAL")
+
 
 ```
 
