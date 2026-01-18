@@ -40,6 +40,12 @@ library(readxl)
 library(flextable) 
 library(knitr)
 library(stringr)
+library(broom)
+```
+
+```{r}
+if (!require("pastecs")) install.packages("pastecs")
+library(pastecs)
 ```
 
 ```{r load, message=FALSE}
@@ -109,12 +115,209 @@ paste0("Таким образом, согласно критериям вклю�
 data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
 ```
 
-
 # Анализ эффективности
 
 ## Интенсивность боли по ВАШ (в покое)
 
+```{r VAS_prep}
+prep_VAS <- data_filtered %>% 
+  select(c(contains("VAS"), USUBJID, ARM)) %>% 
+  pivot_longer(cols = starts_with("V"),
+    names_to = c("VISIT", "CONDITION"),
+    names_pattern = "(V\\d)_PAIN_VAS(.*)",
+    values_to = "VALUE")
+
+bl_VAS <- prep_VAS %>% 
+  filter(VISIT=="V1") %>% 
+  mutate(BLVALUE=VALUE) %>% 
+  select(-c(VISIT, VALUE, ARM))
+
+
+final_VAS <- prep_VAS %>% 
+  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
+  mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
+         CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
+         VISIT=as.factor(VISIT))
+
+final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
+
+```
+
+
 ```{r VAS_rest}
+globaldec <- ","
+globaldig <- 2
+
+f_num <- function(x, dig = globaldig, dec = globaldec, p = FALSE, pre = "", suf = "") {
+        n <- formatC(x, digits = dig, decimal.mark = dec, format = "f")
+        n <- ifelse(p == TRUE & x < 0.001, 
+                    paste0("<0", dec, strrep("0", dig-1), "1"), n)
+        n <- ifelse(p == TRUE & x == 1,
+                    paste0(">0", dec, strrep("9", dig)), n)
+        n <- paste0(pre, n, suf)
+        return(n)
+}
+
+statlist <- c(
+        `Количество наблюдений` = "nbr.val",
+        `Среднее (СО)` = "mean.std",
+        `97.5% ДИ` = "CI.mean",
+        `Медиана (Q1; Q3)` = "median.q1.q3",
+        `Минимум – Максимум` = "minmax")
+
+sumnum <- function(x, stats = statlist, conflev = .975)
+{
+  std <- stat.desc(as.numeric(x), p = conflev)
+  
+  CI.L  <- std["mean"] - std["CI.mean.0.975"]
+  CI.U  <- std["mean"] + std["CI.mean.0.975"]
+  
+  Q.L <- quantile(x, probs = 0.25, na.rm = TRUE)
+  Q.U <- quantile(x, probs = 0.75, na.rm = TRUE)
+  
+  std <- c(
+    std,
+    CI.L = CI.L,
+    CI.U = CI.U,
+    Q.L = Q.L,
+    Q.U = Q.U
+  )
+  
+  std[-c(1:3)] <- f_num(std[-c(1:3)])
+  
+  std <- gsub(pattern = ".*N.*|.*I.*", replacement = "-", std)
+  
+  std["mean.std"] = paste0(std["mean"], " (", std["std.dev"], ")")
+  std["CI.mean"] = paste(std["CI.L.mean"], std["CI.U.mean"], sep = " - ")
+  std["median.q1.q3"] = paste0(std["median"], " (", paste(std["Q.L.25%"], std["Q.U.75%"], sep = "; "), ")")
+  std["minmax"] = paste(std["min"], std["max"], sep = " - ")
+  
+  std <- std[stats] %>% rbind() %>% as.data.frame()
+  colnames(std) <- names(stats)
+  
+  return(std)
+}
+
+describe_num <- function (data, idvar, grvar, visvar, grcodes, 
+                          varcodes, varnames, visits, total = NULL, 
+                          col_name=varnames) {
+  dat <- data %>%
+    as.data.frame() %>%
+    select(all_of(c(
+      ID = idvar, GROUP = grvar, VISIT = visvar
+    )), all_of(varcodes))
+  
+  # Суммарные данные
+  if (!is.null(total))
+    dat <- rbind(dat, mutate(dat, GROUP = factor(total)))
+  
+  # Расчет описательной статистики
+  ltbl <- dat %>%
+    complete(GROUP, VISIT) %>%
+    filter(VISIT %in% visits) %>%
+    mutate(across(.cols = all_of(varcodes), .fns = as.numeric)) %>%
+    pivot_longer(
+      cols = all_of(varcodes),
+      names_to = "VAR",
+      values_to = "VAL",
+      names_transform = list(VAR = fct_inorder)
+    ) %>%
+    mutate(VAL = as.numeric(VAL), VISIT = droplevels(VISIT)) %>%
+    group_by(VAR, VISIT, GROUP) %>%
+    do(sumnum(.$VAL)) # sumnum.R
+  
+  # Набор данных с описательной статистикой
+  ttbl <- ltbl %>%
+    pivot_longer(
+      cols = c(-VAR, -VISIT, -GROUP),
+      names_to = "PARAM",
+      values_to = "VAL",
+      names_transform = list(PARAM = fct_inorder)
+    ) %>%
+    arrange(VAR, VISIT, GROUP, PARAM) %>%
+    ungroup() %>%
+    mutate(VAR = case_when(VAR == {{varcodes}} ~ {{col_name}}),
+           VAR = factor(VAR, levels = varnames))
+  
+  return(ttbl)
+}
+
+
+idvar <- "USUBJID"
+grvar <- "ARM"
+visvar <- "VISIT"
+grcodes <- c("Траумель" = "Traumeel", "Диклофенак" = "Diclofenac")
+
+vis_codes <- c("V1" = "Визит 1\n(исходный уровень", 
+               "V2" = "Визит 2", 
+               "V3" =
+                 "Визит 3")
+
+visits <- c("Визит 1\n(исходный уровень)", "Визит 2", "Визит 3")
+
+visits <- c("V1", "V2", "V3")
+
+NA_label <- "–"
+bgp_label <- "p-value (между группами)"
+wgp_label <- "p (с начальным уровнем)"
+```
+
+
+```{r VAS_rest}
+my_data <- final_VAS %>% 
+  filter(CONDITION=="REST") %>%
+  mutate(ARM=fct_relevel(ARM, "Traumeel", "Diclofenac"))
+
+varcodes <- "VALUE" 
+varnames <- "Наблюдаемое значение" 
+res_obs <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
+                    varcodes, varnames, visits, total = "Все пациенты", 
+                    col_name="Наблюдаемое значение")
+
+varcodes <- "CHVALUE" 
+varnames <- "Изменение от исходного уровня" 
+res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
+                    varcodes, varnames, visits, total = "Все пациенты", 
+                    col_name="Изменение от исходного уровня") %>% 
+  rowwise() %>% 
+  mutate(VAL=ifelse(VISIT=="V1", "-", VAL)) %>% 
+  ungroup()
+
+results <- my_data %>%
+  filter(VISIT != "V1") %>%
+  group_by(VISIT) %>%
+  nest() %>%
+  mutate(ttest = map(
+    data,
+    ~ t.test(
+      CHVALUE ~ ARM,
+      data = .x,
+      conf.level = 0.975,
+      alternative = "greater",
+      mu = -6.5
+    ) %>% tidy()
+  )) %>%
+  unnest(ttest) %>%
+  mutate(`Оценка (97.5% ДИ)` = sprintf("%.1f (%.1f - %.1f)", estimate, conf.low, conf.high)) %>%
+  mutate(
+    VISIT = case_match(
+      VISIT,
+      "V2" ~ "Между визитами 1 и 2",
+      "V3" ~ "Между визитами 1 и 3",
+      .default = VISIT
+    ),
+    `p-value` = round(p.value, 3) %>% as.character(),
+    estimate1 = round(estimate1, 2),
+    estimate2 = round(estimate2, 2)
+  ) %>%
+  select(VISIT, `p-value`, `Оценка (97.5% ДИ)`, estimate1, estimate2) %>%
+  rename(
+    `Траумель` = estimate1,
+    `Диклофенак` = estimate2,
+    `Изменение интенсивности боли по ВАШ (мм)` = VISIT
+  )
+
+results
 
 ```
 
