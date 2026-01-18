@@ -114,7 +114,7 @@ data_filtered %>%
       ARM,
       "Диклофенак" = "Diclofenac",
       "Траумель"   = "Traumeel"
-    )
+    ), ARM = fct_relevel(ARM, "Траумель", "Диклофенак")
   ) -> blood 
 
 
