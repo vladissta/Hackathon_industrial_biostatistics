@@ -1,6 +1,7 @@
 ---
 title: "Отчёт"
 output:
+  word_document: default
   html_document:
     df_print: paged
 date: "2026-01-18"
@@ -18,7 +19,9 @@ library(stringr)
 ```
 ```{r}
 if (!require("pastecs")) install.packages("pastecs")
+if (!require("broom")) install.packages("broom")
 library(pastecs)
+library(broom)
 ```
 
 ```{r load, message=FALSE}
@@ -187,14 +190,26 @@ final_VAS <- prep_VAS %>%
   left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
   mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
          CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
-         VISIT=as.factor(VISIT))
+         VISIT=as.factor(VISIT),
+         ARM=factor(ARM, levels = c("Traumeel", "Diclofenac")),
+         VISIT=factor(VISIT, levels = c("V1", "V2", "V3")))
+
+final_VAS_rus <- prep_VAS %>% 
+  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
+  mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
+         CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
+         VISIT=as.factor(VISIT),
+         ARM=factor(ARM, levels = c("Traumeel", "Diclofenac"),
+                    labels = c("Траумель", "Диклофенак")),
+         VISIT=factor(VISIT, levels = c("V1", "V2", "V3"), 
+                      labels = c("Визит 1\n(исходный уровень)", "Визит 2", "Визит 3")))
 
 final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 
 ```
 
 
-```{r VAS_rest}
+```{r}
 library(flextable)
 globaldec <- ","
 globaldig <- 2
@@ -258,7 +273,7 @@ describe_num <- function (data, idvar, grvar, visvar, grcodes,
                 mutate(across(.cols = all_of(varcodes), .fns = as.numeric)) %>% 
                 pivot_longer(cols = all_of(varcodes), names_to = "VAR", values_to = "VAL", 
                              names_transform = list(VAR = fct_inorder)) %>% 
-                mutate(VAL = as.numeric(VAL), VISIT = droplevels(VISIT)) %>%
+                mutate(VAL = as.numeric(VAL)) %>%
                 group_by(VAR, VISIT, GROUP) %>%
                 do(sumnum(.$VAL)) # sumnum.R
         
@@ -295,7 +310,7 @@ visits <- c("Визит 1\n(исходный уровень)",
             "Визит 2",
             "Визит 3")
 
-visits <- c("V1", "V2", "V3")
+# visits <- c("V1", "V2", "V3")
 # colslist <- c(
 #         `Показатель` = "VAR", 
 #         `Визит`      = "VISIT", 
@@ -309,8 +324,8 @@ wgp_label <- "p (с начальным уровнем)"
 ```
 
 
-```{r VAS_rest}
-my_data <- final_VAS %>% filter(CONDITION=="REST") %>% mutate(ARM=fct_relevel(ARM, "Traumeel", "Diclofenac"))
+```{r VAS_rest, warning=FALSE}
+my_data <- final_VAS_rus %>% filter(CONDITION=="REST")
 
 varcodes <- "VALUE" 
 varnames <- "Наблюдаемое значение" 
@@ -327,27 +342,15 @@ res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes,
   mutate(VAL=ifelse(VISIT=="V1", "-", VAL)) %>% 
   ungroup()
 
-t_test_result_v2 <- t.test(CHVALUE ~ ARM, data = subset(my_data, VISIT=="V2"), var.equal = T, conf.level=.975, alternative = "greater", mu=-6.5)$p.value
+res_final <- res_obs %>% 
+  bind_rows(res_ch)
 
-t_test_result_v3 <- t.test(CHVALUE ~ ARM, data = subset(my_data, VISIT=="V3"), var.equal = T, conf.level=.975, alternative = "greater", mu=-6.5)$p.value
-glimpse(my_data)
-t.test(CHVALUE ~ ARM, data = subset(my_data, VISIT=="V3"), var.equal = T, conf.level=.975, alternative = "greater", mu=-6.5)$conf.int
 
-library(broom)
-result_df <- t.test(CHVALUE ~ ARM, data = subset(my_data, VISIT=="V3"), var.equal = T, conf.level=.975, alternative = "greater", mu=-6.5) %>%
-  tidy() %>%
-  mutate(
-    ci_formatted = sprintf("%.1f - %.1f", conf.low, conf.high)
-  ) %>%
-  select(estimate, p.value, ci_formatted)
+```
 
-result <- t.test(CHVALUE ~ ARM, data = subset(my_data, VISIT=="V3"), var.equal = T, conf.level=.975, alternative = "greater", mu=-6.5) %>%
-  tidy() %>%
-  mutate(
-    # Форматируем: Оценка (Нижняя - Верхняя)
-    formatted_output = sprintf("%.1f (97.5%% ДИ %.1f - %.1f)", 
-                               estimate, conf.low, conf.high)
-  )
+
+```{r VAS_rest}
+my_data <- final_VAS %>% filter(CONDITION=="REST")
 
 results <- my_data %>%
   filter(VISIT!="V1") %>% 
@@ -358,7 +361,7 @@ results <- my_data %>%
   ) %>%
   unnest(ttest) %>%
   mutate(
-    `Оценка (97.5% ДИ)` = sprintf("%.1f (%.1f - %.1f)", estimate, conf.low, conf.high)
+    `Оценка разницы \nсредних (97.5% ДИ)` = sprintf("%.1f (%.1f - %.1f)", estimate, conf.low, conf.high)
   ) %>%
   mutate(VISIT = case_match(VISIT,
                             "V2" ~ "Между визитами 1 и 2",
@@ -368,18 +371,15 @@ results <- my_data %>%
          estimate1=round(estimate1, 2),
          estimate2=round(estimate2, 2)
          ) %>% 
-  select(VISIT, `p-value`, `Оценка (97.5% ДИ)`, estimate1, estimate2) %>%
-  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности боли по ВАШ (мм)`=VISIT) %>% 
-  
-  
+  select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
+  relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
+  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
+  flextable() %>% 
+	set_table_properties(layout = "autofit", align="center", width = .9)
 
-
+results
 ```
 
-
-```{r VAS_rest}
-
-```
 
 ## Интенсивность боли по ВАШ (после нагрузки)
 
