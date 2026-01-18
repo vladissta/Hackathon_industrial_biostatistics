@@ -419,7 +419,10 @@ VAS_table <- res_final %>%
   bold(part = "header", i = 1) %>% 
   void(j = 1, part = "header") %>%
   set_table_properties(layout = "autofit", align="center") %>% 
-  set_caption("Таблица X. Оценка интенсивности боли по ВАШ (в покое), по визитам (популяция всех включенных пациентов)")
+  add_footer_lines(values = 
+    "Сокращения: СО — стандартное отклонение; Q1/Q3 — 1 и 3 квартили.\nПримечание. Изменение от исходного уровня рассчитано как разность между оценкой на Визите 1 и оценкой на соответствующем визите."
+  ) %>% 
+  set_caption("Таблица 2. Оценка интенсивности боли по ВАШ (в покое), по визитам (популяция всех включенных пациентов)")
 
 VAS_table
 ```
@@ -486,7 +489,7 @@ results <- my_data %>%
          ) %>% 
   select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
   relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
-  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
+  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм), \nв покое`=VISIT) %>% 
   flextable() %>%
   theme_vanilla() %>%
   autofit() %>%
@@ -494,7 +497,10 @@ results <- my_data %>%
   align(j = 1, align = "left", part = "body") %>% 
   bold(part = "header", i = 1) %>% 
   set_table_properties(layout = "autofit", align="center") %>% 
-  set_caption("Таблица X. Первичная конечная точка, Вторичная конечная точка 1 (популяция всех включенных пациентов)")
+  add_footer_lines(values = 
+    "Примечание. Для сравнения разницы средних с порогом неменьшей эффективности (-6,5 мм) был использован односторонний t-критерий Стьюдента."
+  ) %>%
+  set_caption("Таблица 3. Первичная конечная точка, Вторичная конечная точка 1 (популяция всех включенных пациентов)")
 
 results
 ```
@@ -565,7 +571,10 @@ VAS_table <- res_final %>%
   bold(part = "header", i = 1) %>% 
   void(j = 1, part = "header") %>%
   set_table_properties(layout = "autofit", align="center") %>% 
-  set_caption("Таблица X. Оценка интенсивности боли по ВАШ (после нагрузки), по визитам (популяция всех включенных пациентов)")
+  add_footer_lines(values = 
+    "Сокращения: СО — стандартное отклонение; Q1/Q3 — 1 и 3 квартили.\nПримечание. Изменение от исходного уровня рассчитано как разность между оценкой на Визите 1 и оценкой на соответствующем визите."
+  ) %>% 
+  set_caption("Таблица 4. Оценка интенсивности боли по ВАШ (после нагрузки), по визитам (популяция всех включенных пациентов)")
 
 VAS_table
 
@@ -596,7 +605,7 @@ results <- my_data %>%
          ) %>% 
   select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
   relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
-  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
+  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм), \nпосле нагрузки`=VISIT) %>% 
   flextable() %>% 
 	# set_table_properties(layout = "autofit", align="center", width = .9) %>% 
   theme_vanilla() %>%
@@ -605,7 +614,109 @@ results <- my_data %>%
   align(j = 1, align = "left", part = "body") %>% 
   bold(part = "header", i = 1) %>% 
   set_table_properties(layout = "autofit", align="center") %>% 
-  set_caption("Таблица X. Вторичная конечная точка 3 (популяция всех включенных пациентов)")
+  add_footer_lines(values = 
+    "Примечание. Для сравнения разницы средних с порогом неменьшей эффективности (-6,5 мм) был использован односторонний t-критерий Стьюдента."
+  ) %>%
+  set_caption("Таблица 5. Вторичная конечная точка 3 (популяция всех включенных пациентов)")
+
+results
+```
+
+```{r VAS_perc_table, warning=FALSE}
+my_data <- final_VAS_rus %>% filter(CONDITION=="REST")
+
+sizes <- final_VAS_total %>% 
+  distinct(ARM, USUBJID) %>%
+  count(ARM)
+
+total_n <- sizes %>% 
+  filter(ARM=="Total") %>% 
+  pull(n)
+
+traum_n <- sizes %>% 
+  filter(ARM=="Traumeel") %>% 
+  pull(n)
+
+dicl_n <- sizes %>% 
+  filter(ARM=="Diclofenac") %>% 
+  pull(n)
+
+visits <- c("Визит 2",
+            "Визит 3")
+varcodes <- "PERCCHVALUE" 
+varnames <- "Процентное изменение от исходного уровня" 
+res_perc <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
+                    varcodes, varnames, visits, total = "Все пациенты", 
+                    col_name="Процентное изменение от исходного уровня")
+
+VAS_perc_table <- res_perc %>% 
+  mutate(GROUP=case_when(GROUP=="Траумель" ~ paste0(GROUP,"\n", "N = ", {{traum_n}}),
+                         GROUP=="Диклофенак" ~ paste0(GROUP,"\n", "N = ", {{dicl_n}}),
+                         GROUP=="Все пациенты" ~ paste0(GROUP,"\n", "N = ", {{total_n}}))) %>%
+  pivot_wider(
+    names_from = GROUP, 
+    values_from = VAL) %>%
+  relocate(VISIT, PARAM, 
+           starts_with("Траумель"), 
+           starts_with("Диклофенак"), 
+           starts_with("Все пациенты")) %>% 
+  rename(`Статистика`=PARAM) %>% 
+  select(-VAR) %>% 
+  arrange(VISIT) %>% 
+  as_grouped_data(groups = "VISIT") %>% 
+  flextable() %>%
+  theme_vanilla() %>%
+  autofit() %>%
+  align(align = "center", part = "all") %>%
+  align(j = 1, align = "left", part = "body") %>% 
+  bold(part = "header", i = 1) %>% 
+  void(j = 1, part = "header") %>%
+  set_table_properties(layout = "autofit", align="center") %>% 
+  add_footer_lines(values = 
+    "Сокращения: СО — стандартное отклонение; Q1/Q3 — 1 и 3 квартили.\nПримечание. Процентное изменение от исходного уровня рассчитано по формуле (изменение от исходного уровня * 100%)/исходный уровень. Изменение от исходного уровня рассчитано как разность между оценкой на Визите 1 и оценкой на соответствующем визите."
+  ) %>% 
+  set_caption("Таблица 6. Процентное изменение интенсивности боли по ВАШ от исходного уровня (в покое), по визитам (популяция всех включенных пациентов)")
+
+VAS_perc_table
+```
+
+```{r VAS_perc_result}
+my_data <- final_VAS %>% filter(CONDITION=="REST")
+
+results <- my_data %>%
+  filter(VISIT!="V1") %>% 
+  group_by(VISIT) %>%
+  nest() %>%
+  mutate(
+    ttest = map(data, ~t.test(PERCCHVALUE ~ ARM, data = .x, conf.level = 0.975, alternative = "greater", mu=-5) %>% tidy())
+  ) %>%
+  unnest(ttest) %>%
+  mutate(
+    `Оценка разницы \nсредних (97.5% ДИ)` = sprintf("%.1f (%.1f - %.1f)", estimate, conf.low, conf.high)
+  ) %>%
+  mutate(VISIT = case_match(VISIT,
+                            "V2" ~ "Среднее изменение от исходного уровня на Визите 2 (в %)",
+                            "V3" ~ "Среднее изменение от исходного уровня на Визите 3 (в %)",
+                            .default = VISIT),
+         `p-value`=round(p.value, 3) %>% as.character(),
+         estimate1=round(estimate1, 2),
+         estimate2=round(estimate2, 2)
+         ) %>% 
+  select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
+  relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
+  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Процентное изменение интенсивности \nболи по ВАШ (мм), \nпосле нагрузки`=VISIT) %>% 
+  flextable() %>% 
+	# set_table_properties(layout = "autofit", align="center", width = .9) %>% 
+  theme_vanilla() %>%
+  autofit() %>%
+  align(align = "center", part = "all") %>%
+  align(j = 1, align = "left", part = "body") %>% 
+  bold(part = "header", i = 1) %>% 
+  set_table_properties(layout = "autofit", align="center") %>% 
+  add_footer_lines(values = 
+    "Примечание. Статистическая значимость различий в процентном изменении оценивалась с использованием одностороннего t-критерия Стьюдента относительно выбранной границы неменьшей эффективности (–5%)."
+  ) %>%
+  set_caption("Таблица 7. Вторичная конечная точка 2 (популяция всех включенных пациентов)")
 
 results
 ```
