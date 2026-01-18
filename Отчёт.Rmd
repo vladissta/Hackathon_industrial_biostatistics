@@ -9,13 +9,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(readxl)
+library(gtsummary)
 ```
 
 ```{r load}
 raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 ```
 
+Для описания количественных переменных будут использоваться количество наблюдений, среднее арифметическое значение и стандартное отклонение, медиана, нижний и верхний квартили, минимум и максимум.
+
+Категориальные переменные будут описаны абсолютными частотами (количество наблюдений) и долями, выраженными в процентах.
+
 # Характеристики пациентов
+
 ## Демография и иные исходные характеристики
 
 ```{r dm}
@@ -23,6 +29,7 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 ```
 
 # Анализ эффективности
+
 ## Интенсивность боли по ВАШ (в покое)
 
 ```{r VAS_rest}
@@ -36,6 +43,7 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 ```
 
 # Анализ безопасности
+
 ## ЭКГ
 
 ```{r ecg}
@@ -44,7 +52,41 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 
 ## Клинический анализ крови
 
-```{r oak}
+```{r oak - V1}
+
+raw_data %>% 
+  select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
+  mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
+         ARM = fct_recode(
+      ARM,
+      "Диклофенак" = "Diclofenac",
+      "Траумель"   = "Traumeel"
+    )
+  ) -> blood 
+
+tbl_blood <- blood %>%
+  tbl_summary(
+    by = ARM,
+    type = all_continuous() ~ "continuous2",
+    statistic = all_continuous() ~ c(
+      "Среднее (SD) = {mean} ({sd})",
+      "Медиана (Q1; Q3) = {median} ({p25}; {p75})",
+      "Мин.; Макс. = {min}; {max}"
+    ),
+    label = list(
+      V1_CBC_HGB ~ "Гемоглобин, г/л",
+      V1_CBC_WBC ~ "Лейкоциты, ×10^9/л",
+      V1_CBC_PLT ~ "Тромбоциты, ×10^9/л"
+    ),
+    digits = all_continuous() ~ 2,
+    missing = "no"
+  ) %>%
+  add_overall(last = TRUE) %>%        
+  add_p() %>%                         
+  bold_labels()
+
+tbl_blood
+
 
 ```
 
@@ -53,4 +95,3 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 ```{r vs}
 
 ```
-
