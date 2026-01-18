@@ -108,7 +108,8 @@ n_patients <- data_filtered %>% nrow()
 ## ЭКГ
 
 ```{r ecg}
-classified_by_arm <- data_filtered %>%
+ecg_classified_by_arm <- 
+  data_filtered %>%
   select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -118,7 +119,7 @@ classified_by_arm <- data_filtered %>%
   group_by(PARAM, ARM) %>%
   summarise(overall = n(), .groups = "drop")
 
-tab_by_arm <- data_filtered %>%
+ecg_by_arm <- data_filtered %>%
   dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -127,10 +128,10 @@ tab_by_arm <- data_filtered %>%
   ) %>%
   group_by(PARAM, ARM, value) %>%
   summarise(n = n(), .groups = "drop") %>%
-  left_join(classified_by_arm, by = c("PARAM", "ARM")) %>%
+  left_join(ecg_classified_by_arm, by = c("PARAM", "ARM")) %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
 
-tab_all <- data_filtered %>%
+ecg_all <- data_filtered %>%
   dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   mutate(ARM = "Все пациенты") %>%
   pivot_longer(
@@ -142,7 +143,7 @@ tab_all <- data_filtered %>%
   summarise(n = n(), .groups = "drop") %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / n_patients))
 
-tab_full <- bind_rows(tab_by_arm, tab_all) %>%
+ecg_full <- bind_rows(ecg_by_arm, ecg_all) %>%
   mutate(
     value = recode(as.character(value),
                    "0" = "Норма",
@@ -153,7 +154,7 @@ tab_full <- bind_rows(tab_by_arm, tab_all) %>%
   )
 
 
-tab_wide <- tab_full %>%
+ecg_wide <- ecg_full %>%
   dplyr::select(PARAM, value, ARM, n_perc) %>%
   pivot_wider(
     names_from = ARM,
@@ -171,7 +172,7 @@ tab_wide <- tab_full %>%
 
 ```{r}
 
-flextable(tab_wide) %>%
+flextable(ecg_wide) %>%
 
   set_header_labels(
     PARAM = "Параметр",
@@ -182,10 +183,15 @@ flextable(tab_wide) %>%
   align(part = "header", align = "center") %>%
   align(j = c("PARAM"), part = "body", align = "left") %>%
   align(j = "value", part = "body", align = "left") %>%
-  align(j = setdiff(names(tab_wide), c("PARAM","value")),
+  align(j = setdiff(names(ecg_wide), c("PARAM","value")),
         part = "body", align = "center") %>%
   valign(part = "all", valign = "center") %>%
   merge_v(j = c("PARAM")) %>%
+  
+    add_footer_lines(values = 
+    "Проценты рассчитаны от числа пациентов в соответствующей группе."
+  ) %>%
+  
   theme_vanilla() %>%
   autofit()
 
@@ -271,24 +277,24 @@ df_vit <-
     ))
   
 
-denom_by_arm <- df_vit %>%
+vit_classified_by_arm <- df_vit %>%
   group_by(PARAM, VISIT, ARM) %>%
   summarise(overall = n(), .groups = "drop")
 
-tab_by_arm <- df_vit %>%
+vit_by_arm <- df_vit %>%
   group_by(PARAM, VISIT, ARM, value) %>%
   summarise(n = n(), .groups = "drop") %>%
-  left_join(denom_by_arm,
+  left_join(vit_classified_by_arm,
             by = c("PARAM","VISIT","ARM")) %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100*n/overall))
 
-tab_all <- df_vit %>%
+vit_all <- df_vit %>%
   mutate(ARM = "Все пациенты") %>%
   group_by(PARAM, VISIT, ARM, value) %>%
   summarise(n = n(), .groups = "drop") %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100*n/n_patients))
 
-tab_full <- bind_rows(tab_by_arm, tab_all) %>%
+vit_full <- bind_rows(vit_by_arm, vit_all) %>%
   mutate(value = dplyr::recode(as.character(value),
                           "0" = "Норма",
                           "1" = "Отклонение от нормы"),
@@ -296,7 +302,7 @@ tab_full <- bind_rows(tab_by_arm, tab_all) %>%
                           "Traumeel" = "Траумель",
                           "Diclofenac" = "Диклофенак"))
 
-tab_wide <- tab_full %>%
+vit_wide <- vit_full %>%
   dplyr::select(PARAM, VISIT, value, 
          ARM, n_perc) %>%
   pivot_wider(
@@ -309,7 +315,7 @@ tab_wide <- tab_full %>%
 ```
 
 ```{r}
-flextable(tab_wide) %>%
+flextable(vit_wide) %>%
   set_header_labels(PARAM = "Параметр",
                     VISIT = "Визит",
                     value = "Категория") %>%
@@ -319,7 +325,7 @@ flextable(tab_wide) %>%
           part = "body",
           align = "left") %>%
   align(j = "value", part = "body", align = "left") %>%
-  align(j = setdiff(names(tab_wide), c("PARAM", "VISIT", "value")),
+  align(j = setdiff(names(vit_wide), c("PARAM", "VISIT", "value")),
         part = "body",
         align = "center") %>%
   valign(part = "all", valign = "center") %>% 
