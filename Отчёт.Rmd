@@ -141,10 +141,10 @@ tbl_summary(
     by = ARM,
     type = all_continuous() ~ "continuous2",
     statistic = all_continuous() ~ c(
+      "{N_nonmiss}",
       "{mean} ({sd})",
       "{median} ({p25}; {p75})",
-      "{min}–{max}",
-      "{N_nonmiss}"
+      "{min}–{max}"
     ),
     label = list(
       V1_DEM_SEX ~ "Пол",
@@ -166,7 +166,7 @@ tbl_summary(
           row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
           row_type == "level" & str_detect(label, "F") ~ "Женский",
           row_type == "level" & str_detect(label, "M") ~ "Мужской",
-          row_type == "level" & str_detect(label, "N Non-missing") ~ "Число наблюдений",
+          row_type == "level" & str_detect(label, "N Non-missing") ~ "Количество наблюдений",
           TRUE ~ label
         )
       )
