@@ -212,6 +212,11 @@ flextable(tab_wide) %>%
         align = "center") %>%
   valign(part = "all", valign = "center") %>% 
   merge_v(j = c("PARAM", "VISIT")) %>% 
+  
+  add_footer_lines(values = 
+    "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПроценты рассчитаны от числа пациентов в соответствующей группе."
+  ) %>%
+  
   theme_vanilla() %>% 
   autofit()
 ```
