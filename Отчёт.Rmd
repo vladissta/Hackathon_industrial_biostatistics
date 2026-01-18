@@ -33,7 +33,8 @@ date: "2026-01-18"
 
 ```{r setup, include=FALSE, warning=FALSE}
 # knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(echo = FALSE, dpi = 150, fig.width=6, fig.height=4)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE,
+                      dpi = 150, fig.width=6, fig.height=4)
 
 library(tidyverse)
 library(gtsummary)
@@ -47,6 +48,23 @@ if (!require("broom")) install.packages("broom")
 library(pastecs)
 library(broom)
 ```
+
+```{r}
+theme_custom <- 
+  theme(
+    axis.line = element_line(colour = "grey", linewidth = 0.5),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 11),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+
+set_theme(theme_custom)
+```
+
 
 ```{r load, message=FALSE}
 raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
@@ -161,7 +179,7 @@ tbl_summary(
     ~ .x %>%
       mutate(
         label = case_when(
-          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (CО)",
+          row_type == "level" & str_detect(label, "^Mean \\(СО\\)$") ~ "Среднее (СО)",
           row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
           row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
           row_type == "level" & str_detect(label, "F") ~ "Женский",
@@ -178,7 +196,7 @@ tbl_summary(
   modify_footnote(everything() ~ NA) %>% 
   bold_labels() %>%
   as_flex_table() %>%
-  set_caption("Таблица 1. Демографические и антропометрические характеристики") %>% 
+  set_caption("Таблица 1. Демографические и антропометрические характеристики (популяция всех включенных пациентов)") %>% 
   bold(part = "header") %>% 
   theme_vanilla() %>% 
   autofit(part = 'body') %>% 
@@ -194,11 +212,15 @@ tbl_summary(
 
 ## Интенсивность боли по ВАШ (в покое)
 
+<br>
+Описательная статистика по оценке интенсивности боли по ВАШ в состоянии покоя в рассматриваемых группах приведена в Таблице X. Средние значения интенсивности боли для каждой из групп на визитах 1, 2 и 3 визуализированы на Рисунке 1.
+<br>
+
 ```{r VAS_prep}
-prep_VAS <- data_filtered %>%
-  select(c(contains("VAS"), USUBJID, ARM)) %>%
-  pivot_longer(
-    cols = starts_with("V"),
+
+prep_VAS <- data_filtered %>% 
+  select(c(contains("VAS"), USUBJID, ARM)) %>% 
+  pivot_longer(cols = starts_with("V"),
     names_to = c("VISIT", "CONDITION"),
     names_pattern = "(V\\d)_PAIN_VAS(.*)",
     values_to = "VALUE"
@@ -244,9 +266,7 @@ final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 
 ```
 
-```{r}
-globaldec <- ","
-globaldig <- 2
+```{r functions}
 
 f_num <- function(x,
                   dig = globaldig,
@@ -267,12 +287,11 @@ f_num <- function(x,
 }
 
 statlist <- c(
-  `Количество наблюдений` = "nbr.val",
-  `Среднее (СО)` = "mean.std",
-  `97.5% ДИ` = "CI.mean",
-  `Медиана (Q1; Q3)` = "median.q1.q3",
-  `Минимум – Максимум` = "minmax"
-)
+        `Количество наблюдений` = "nbr.val",
+        `Среднее (СО)` = "mean.std",
+        # `97.5% ДИ` = "CI.mean",
+        `Медиана (Q1; Q3)` = "median.q1.q3",
+        `Минимум – Максимум` = "minmax")
 
 sumnum <- function(x, stats = statlist, conflev=.975)
 {
@@ -308,10 +327,8 @@ describe_num <- function (data, idvar, grvar, visvar, grcodes,
                 as.data.frame() %>% 
                 select(all_of(c(ID = idvar, GROUP = grvar, VISIT = visvar)), all_of(varcodes))
         
-        # Суммарные данные
         if (!is.null(total)) dat <- rbind(dat, mutate(dat, GROUP = factor(total)))
         
-        # Расчет описательной статистики
         ltbl <- dat %>%
                 complete(GROUP, VISIT) %>%
                 filter(VISIT %in% visits) %>%
@@ -322,7 +339,6 @@ describe_num <- function (data, idvar, grvar, visvar, grcodes,
                 group_by(VAR, VISIT, GROUP) %>%
                 do(sumnum(.$VAL)) # sumnum.R
         
-        # Набор данных с описательной статистикой
         ttbl <- ltbl %>% 
                 pivot_longer(cols = c(-VAR, -VISIT, - GROUP), names_to = "PARAM", values_to = "VAL", 
                              names_transform = list(PARAM = fct_inorder)) %>% 
@@ -334,37 +350,39 @@ describe_num <- function (data, idvar, grvar, visvar, grcodes,
         return(ttbl)
 }
 
-
+globaldec <- "."
+globaldig <- 2
 idvar <- "USUBJID" 
 grvar <- "ARM" 
 visvar <- "VISIT"
 grcodes <- c("Траумель"="Traumeel", "Диклофенак"="Diclofenac")
-vis_codes <- c("Визит 1\n(исходный уровень"="V1",
-               "Визит 2"="V2",
-               "Визит 3"="V3")
-
-vis_codes <- c("V1"="Визит 1\n(исходный уровень",
-               "V2"="Визит 2",
-               "V3"="Визит 3")
 
 visits <- c("Визит 1\n(исходный уровень)",
             "Визит 2",
             "Визит 3")
 
-# colslist <- c(
-#         `Показатель` = "VAR", 
-#         `Визит`      = "VISIT", 
-#         `Группа`     = "GROUP", 
-#         `Параметр`   = "PARAM", 
-#         `Сравнение`  = "P"
-# )
-NA_label <- "–"
-bgp_label <- "p-value (между группами)"
-wgp_label <- "p (с начальным уровнем)"
 ```
 
-```{r VAS_rest, warning=FALSE}
+<!---BLOCK_LANDSCAPE_START--->
+
+```{r VAS_rest_table, warning=FALSE}
 my_data <- final_VAS_rus %>% filter(CONDITION=="REST")
+
+sizes <- final_VAS_total %>% 
+  distinct(ARM, USUBJID) %>%
+  count(ARM)
+
+total_n <- sizes %>% 
+  filter(ARM=="Total") %>% 
+  pull(n)
+
+traum_n <- sizes %>% 
+  filter(ARM=="Traumeel") %>% 
+  pull(n)
+
+dicl_n <- sizes %>% 
+  filter(ARM=="Diclofenac") %>% 
+  pull(n)
 
 varcodes <- "VALUE" 
 varnames <- "Наблюдаемое значение" 
@@ -378,13 +396,48 @@ res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes,
                     varcodes, varnames, visits, total = "Все пациенты", 
                     col_name="Изменение от исходного уровня") %>% 
   rowwise() %>% 
-  mutate(VAL=ifelse(VISIT=="V1", "-", VAL)) %>% 
+  mutate(VAL=ifelse(VISIT=="Визит 1\n(исходный уровень)", "-", VAL)) %>% 
   ungroup()
 
 res_final <- res_obs %>% 
   bind_rows(res_ch)
 
+VAS_table <- res_final %>% 
+  mutate(GROUP=case_when(GROUP=="Траумель" ~ paste0(GROUP,"\n", "N = ", {{traum_n}}),
+                         GROUP=="Диклофенак" ~ paste0(GROUP,"\n", "N = ", {{dicl_n}}),
+                         GROUP=="Все пациенты" ~ paste0(GROUP,"\n", "N = ", {{total_n}}))) %>%
+  pivot_wider(id_cols = c(VISIT, GROUP, PARAM), names_from = "VAR", values_from = "VAL") %>% 
+  pivot_wider(
+    names_from = GROUP, 
+    values_from = c(`Наблюдаемое значение`, `Изменение от исходного уровня`),
+    names_glue = "{GROUP}_{.value}") %>%
+  relocate(VISIT, PARAM, 
+           starts_with("Траумель"), 
+           starts_with("Диклофенак"), 
+           starts_with("Все пациенты")) %>% 
+  rename(`Статистика`=PARAM) %>% 
+  
+  arrange(VISIT) %>% 
+  as_grouped_data(groups = "VISIT") %>% 
+  flextable() %>%
+  separate_header(opts = c("span_column", "bottom_aligned")) %>% 
+  theme_vanilla() %>%
+  autofit() %>%
+  align(align = "center", part = "all") %>%
+  align(j = 1, align = "left", part = "body") %>% 
+  bold(part = "header", i = 1) %>% 
+  void(j = 1, part = "header") %>%
+  set_table_properties(layout = "autofit", align="center") %>% 
+  set_caption("Таблица X. Оценка интенсивности боли по ВАШ (в покое), по визитам (популяция всех включенных пациентов)")
+
+
+VAS_table
 ```
+<!---BLOCK_LANDSCAPE_STOP--->
+
+<br>
+Рисунок 1. График, отображающий динамику средних значений интенсивности боли по ВАШ в рассматриваемых группах в состоянии покоя.
+<br>
 
 ```{r, warning=FALSE}
 for_graphs <- res_obs %>%
@@ -392,13 +445,13 @@ for_graphs <- res_obs %>%
 
 for_graphs <- for_graphs %>%
   mutate(
-    Среднее = str_extract(VAL, "^\\d+,\\d+"),
-    СО = str_extract(VAL, "\\d+,\\d+\\)$")
+    Среднее = str_extract(VAL, "^\\d+.\\d+"),
+    СО = str_extract(VAL, "\\d+.\\d+\\)$")
   ) %>%
   mutate(
     СО = str_remove(СО, "\\)$"),
-    Среднее = as.numeric(gsub(",", ".", Среднее)),
-    СО = as.numeric(gsub(",", ".", СО))
+    Среднее = as.numeric(Среднее),
+    СО = as.numeric(СО)
   )
 
 plot_1 <- for_graphs %>%
@@ -419,21 +472,11 @@ ggplot(plot_1, aes(x = VISIT, y = `Среднее`, color = GROUP, group = GROUP
     y = "Средняя интенсивность боли по ВАШ, мм",
     color = "Группа"
   ) +
-  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue")) +
-  theme(
-    axis.line = element_line(colour = "grey", linewidth = 0.5),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 11),
-    plot.title = element_text(size = 14, face = "bold"),
-    plot.subtitle = element_text(size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 11),
-    panel.grid.minor = element_blank()
-  )
+  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue"))
 
 ```
 
-```{r}
+```{r VAS_rest_result}
 my_data <- final_VAS %>% filter(CONDITION=="REST")
 
 results <- my_data %>%
@@ -458,20 +501,202 @@ results <- my_data %>%
   select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
   relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
   rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
+  flextable() %>%
+  theme_vanilla() %>%
+  autofit() %>%
+  align(align = "center", part = "all") %>%
+  align(j = 1, align = "left", part = "body") %>% 
+  bold(part = "header", i = 1) %>% 
+  set_table_properties(layout = "autofit", align="center") %>% 
+  set_caption("Таблица X. Первичная конечная точка, Вторичная конечная точка 1 (популяция всех включенных пациентов)")
+
+results
+```
+<!---BLOCK_LANDSCAPE_START--->
+
+<br>
+В качестве **первичной конечной точки** выступало снижение интенсивности боли в коленном суставе в покое по 100 мм ВАШ (визуально-аналоговой шкале) на День 30 (Визит 3) по сравнению с исходным уровнем (Визит 1). Полученные разницы были протестированы между двумя группами (Траумель, Диклофенак) с помощью одностороннего t-критерия Стьюдента на уровне значимости 𝛼 = 0,025.
+<br>
+Статистическая гипотеза не меньшей эффективности в исследовании была сформулирована следующим образом:
+<br>
+H0: μT - μR ≤ δ, 
+HA: μT - μR > δ
+<br>
+Где μT – среднее значение интенсивности боли по шкале ВАШ (мм) в группе, получающей лечение препаратом Траумель. μR – среднее значение интенсивности боли по шкале ВАШ (мм) в группе, получающей лечение препаратом Диклофенак. δ – граница не меньшей эффективности (-6,5 мм).
+<br>
+В качестве исходных параметров было взято следующее: априорное предположение о равной эффективности сравниваемых препаратов (ε = 0); граница не меньшей эффективности, установленная как половина минимального клинически значимого изменения по ВАШ, равная -6,5 мм; стандартное отклонение для снижения по шкале ВАШ σ = 8,35; вероятность ошибки I рода – 0,025; мощность – 80%.
+<br>
+*Разница показателей средней оценки интенсивности боли в коленном суставе в покое по 100 мм ВАШ между Визитами 1 и 3 в группе, апплицирующей препарат Траумель, составляет 9,78, в группе, апплицирующей препарат Диклофенак, – 18,36. Разница средних изменений интенсивности боли между визитами в группах составила -8,6. 97,5% доверительный интервал (-10,6 - Inf) включает границу не меньшей эффективности -6,5 мм; P-значение больше заданного уровня (0,977). Следовательно нулевая гипотеза не может быть отвергнута, отличие статистически незначимо.*
+<br>
+**В качестве первой вторичной конечной точки** выступало снижение оценки пациентом боли в коленном суставе в покое по 100 мм ВАШ на 14-й день (Визит 2) по сравнению с исходным значением (Визит 1).
+<br>
+*Разница показателей средней оценки интенсивности боли в коленном суставе в покое по 100 мм ВАШ между Визитами 1 и 2 в группе, апплицирующей препарат Траумель, составляет 4,96, в группе, апплицирующей препарат Диклофенак, – 10,80. Разница средних изменений интенсивности боли между визитами в группах составила -5,8. 97,5% доверительный интервал (-8,0 - Inf) включает границу не меньшей эффективности -6,5 мм; P-значение больше заданного уровня (0,273). Следовательно нулевая гипотеза не может быть отвергнута, отличие статистически незначимо.*
+<br>
+
+## Интенсивность боли по ВАШ (после нагрузки)
+
+<br>
+Описательная статистика по оценке интенсивности боли по ВАШ после нагрузки в рассматриваемых группах приведена в Таблице X. Средние значения интенсивности боли для каждой из групп на визитах 1, 2 и 3 визуализированы на Рисунке 2.
+<br>
+
+```{r VAS_20m_table}
+my_data <- final_VAS_rus %>% filter(CONDITION=="WALK20M")
+
+sizes <- final_VAS_total %>% 
+  distinct(ARM, USUBJID) %>%
+  count(ARM)
+
+total_n <- sizes %>% 
+  filter(ARM=="Total") %>% 
+  pull(n)
+
+traum_n <- sizes %>% 
+  filter(ARM=="Traumeel") %>% 
+  pull(n)
+
+dicl_n <- sizes %>% 
+  filter(ARM=="Diclofenac") %>% 
+  pull(n)
+
+varcodes <- "VALUE" 
+varnames <- "Наблюдаемое значение" 
+res_obs <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
+                    varcodes, varnames, visits, total = "Все пациенты", 
+                    col_name="Наблюдаемое значение")
+
+varcodes <- "CHVALUE" 
+varnames <- "Изменение от исходного уровня" 
+res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
+                    varcodes, varnames, visits, total = "Все пациенты", 
+                    col_name="Изменение от исходного уровня") %>% 
+  rowwise() %>% 
+  mutate(VAL=ifelse(VISIT=="Визит 1\n(исходный уровень)", "-", VAL)) %>% 
+  ungroup()
+
+res_final <- res_obs %>% 
+  bind_rows(res_ch)
+
+VAS_table <- res_final %>% 
+  mutate(GROUP=case_when(GROUP=="Траумель" ~ paste0(GROUP,"\n", "N = ", {{traum_n}}),
+                         GROUP=="Диклофенак" ~ paste0(GROUP,"\n", "N = ", {{dicl_n}}),
+                         GROUP=="Все пациенты" ~ paste0(GROUP,"\n", "N = ", {{total_n}}))) %>%
+  pivot_wider(id_cols = c(VISIT, GROUP, PARAM), names_from = "VAR", values_from = "VAL") %>% 
+  pivot_wider(
+    names_from = GROUP, 
+    values_from = c(`Наблюдаемое значение`, `Изменение от исходного уровня`),
+    names_glue = "{GROUP}_{.value}") %>%
+  relocate(VISIT, PARAM, 
+           starts_with("Траумель"), 
+           starts_with("Диклофенак"), 
+           starts_with("Все пациенты")) %>% 
+  rename(`Статистика`=PARAM) %>% 
+  
+  arrange(VISIT) %>% 
+  as_grouped_data(groups = "VISIT") %>% 
+  flextable() %>%
+  separate_header(opts = c("span_column", "bottom_aligned")) %>% 
+  theme_vanilla() %>%
+  autofit() %>%
+  align(align = "center", part = "all") %>%
+  align(j = 1, align = "left", part = "body") %>% 
+  bold(part = "header", i = 1) %>% 
+  void(j = 1, part = "header") %>%
+  set_table_properties(layout = "autofit", align="center") %>% 
+  set_caption("Таблица X. Оценка интенсивности боли по ВАШ (после нагрузки), по визитам (популяция всех включенных пациентов)")
+
+
+VAS_table
+
+```
+<!---BLOCK_LANDSCAPE_STOP--->
+
+<br>
+Рисунок 2. График, отображающий динамику средних значений интенсивности боли по ВАШ в рассматриваемых группах после нагрузки.
+<br>
+
+```{r, warning=FALSE}
+for_graphs <- res_obs %>%
+  filter(str_detect(PARAM, "^Среднее"))
+
+for_graphs <- for_graphs %>%
+  mutate(
+    Среднее = str_extract(VAL, "^\\d+.\\d+"),
+    СО = str_extract(VAL, "\\d+.\\d+\\)$")
+  ) %>%
+  mutate(
+    СО = str_remove(СО, "\\)$"),
+    Среднее = as.numeric(Среднее),
+    СО = as.numeric(СО)
+  )
+
+plot_1 <- for_graphs %>%
+  filter(GROUP %in% c("Траумель", "Диклофенак"))
+
+ggplot(plot_1, aes(x = VISIT, y = `Среднее`, color = GROUP, group = GROUP)) +
+  geom_line(size = 1) +
+  geom_point(size = 3, position = position_dodge(width = 0.1)) +
+  geom_errorbar(aes(ymin = `Среднее` - `СО`, ymax = `Среднее` + `СО`), 
+                width = 0.1, size = 0.5, position = position_dodge(width = 0.1)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 100), 
+                     breaks = seq(0, 100, by = 10)) +
+  labs(
+    title = "Динамика средних значений\nинтенсивности боли по ВАШ в покое",
+    subtitle = "Траумель vs Диклофенак",
+    x = "Номер визита",
+    y = "Средняя интенсивность боли по ВАШ, мм",
+    color = "Группа"
+  ) +
+  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue"))
+
+```
+
+```{r VAS_20m_result}
+my_data <- final_VAS %>% filter(CONDITION=="WALK20M")
+
+results <- my_data %>%
+  filter(VISIT!="V1") %>% 
+  group_by(VISIT) %>%
+  nest() %>%
+  mutate(
+    ttest = map(data, ~t.test(CHVALUE ~ ARM, data = .x, conf.level = 0.975, alternative = "greater", mu=-6.5) %>% tidy())
+  ) %>%
+  unnest(ttest) %>%
+  mutate(
+    `Оценка разницы \nсредних (97.5% ДИ)` = sprintf("%.1f (%.1f - %.1f)", estimate, conf.low, conf.high)
+  ) %>%
+  mutate(VISIT = case_match(VISIT,
+                            "V2" ~ "Между визитами 1 и 2",
+                            "V3" ~ "Между визитами 1 и 3",
+                            .default = VISIT),
+         `p-value`=round(p.value, 3) %>% as.character(),
+         estimate1=round(estimate1, 2),
+         estimate2=round(estimate2, 2)
+         ) %>% 
+  select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
+  relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
+  rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
   flextable() %>% 
-  set_caption("Таблица 2. Результат анализа изменения интенсивность боли в покое") %>%
-	set_table_properties(align="center", width = .9) %>% 
-  autofit() %>% 
-  theme_vanilla()
+	# set_table_properties(layout = "autofit", align="center", width = .9) %>% 
+  theme_vanilla() %>%
+  autofit() %>%
+  align(align = "center", part = "all") %>%
+  align(j = 1, align = "left", part = "body") %>% 
+  bold(part = "header", i = 1) %>% 
+  set_table_properties(layout = "autofit", align="center") %>% 
+  set_caption("Таблица X. Вторичная конечная точка 3 (популяция всех включенных пациентов)")
+
 
 results
 ```
 
-## Интенсивность боли по ВАШ (после нагрузки)
-
-```{r VAS_20m}
-
-```
+<br>
+**В качестве следующей вторичной конечной точки** выступало снижение оценки пациентом боли в коленном суставе по 100 мм ВАШ после ходьбы 20 метров на 14-й и 30-й день (Визиты 2 и 3) по сравнению с исходным значением (Визит 1).
+<br>
+*Разница показателей средней оценки интенсивности боли в коленном суставе в покое по 100 мм ВАШ между Визитами 1 и 3 в группе, апплицирующей препарат Траумель, составляет 9,65, в группе, апплицирующей препарат Диклофенак, – 19,36. Разница средних изменений интенсивности боли между визитами в группах составила -9,7. 97,5% доверительный интервал (-12,7 - Inf) включает границу не меньшей эффективности -6,5 мм; P-значение больше заданного уровня (0,981). Следовательно нулевая гипотеза не может быть отвергнута, отличие статистически незначимо.*
+<br>
+*Разница показателей средней оценки интенсивности боли в коленном суставе в покое по 100 мм ВАШ между Визитами 1 и 2 в группе, апплицирующей препарат Траумель, составляет 6,43, в группе, апплицирующей препарат Диклофенак, – 11,52. Разница средних изменений интенсивности боли между визитами в группах составила -5,1. 97,5% доверительный интервал (-8,3 - Inf) включает границу не меньшей эффективности -6,5 мм; P-значение больше заданного уровня (0,188). Следовательно нулевая гипотеза не может быть отвергнута, отличие статистически незначимо.*
+<br>
 
 # Анализ безопасности
 
@@ -561,11 +786,9 @@ flextable(ecg_wide) %>%
         part = "body", align = "center") %>%
   valign(part = "all", valign = "center") %>%
   merge_v(j = c("PARAM")) %>%
-  
-  set_caption("Таблица Х. Показатели ЭКГ пациентов") %>%
-  
+  set_caption("Таблица Х. Показатели ЭКГ пациентов (популяция безопасности)") %>%
   add_footer_lines(values = 
-    "Проценты рассчитаны от числа пациентов в соответствующей группе."
+    "Примечание: проценты рассчитаны от числа пациентов в соответствующей группе."
   ) %>%
   
   theme_vanilla() %>%
@@ -573,7 +796,7 @@ flextable(ecg_wide) %>%
 
 ```
 
-В таблице представлены результаты оценки ЭКГ по трём параметрам (QT-аномалии, нарушения ритма, изменения ST–T) в группах Траумеля и диклофенака. В обеих группах преобладали нормальные значения: доля пациентов без QT-аномалий составила 93% при диклофенаке и 93% при Траумеле (всего 93%), без нарушений ритма — 86% и 93% соответственно (всего 90%). Наиболее часто фиксировались изменения ST–T: отклонения отмечены у 14% пациентов в группе диклофенака и у 14% в группе Траумеля (всего 14%). В целом частота ЭКГ-отклонений была низкой и сопоставимой между группами; наиболее распространённой категорией отклонений являлись изменения ST–T.
+В таблице представлены результаты оценки ЭКГ по трём параметрам (QT-аномалии, нарушения ритма, изменения ST–T) в группах Траумеля и диклофенака. В целом частота ЭКГ-отклонений была низкой и сопоставимой между группами; наиболее распространённой категорией отклонений являлись изменения ST–T.
 
 ## Клинический анализ крови
 
@@ -612,7 +835,8 @@ tbl_blood <- blood %>%
     ~ .x %>%
       mutate(
         label = case_when(
-          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (SD)",
+
+          row_type == "level" & str_detect(label, "^Mean \\(СО\\)$") ~ "Среднее (СО)",
           row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
           row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
           TRUE ~ label
@@ -625,9 +849,9 @@ tbl_blood <- blood %>%
   ) %>%
   bold_labels() %>%
   as_flex_table() %>% 
-  set_caption("Таблица Х. Показатели клинического анализа крови пациентов") %>%
+  set_caption("Таблица Х. Показатели клинического анализа крови пациентов (популяция безопасности)") %>%
   add_footer_lines(values = 
-    "Сокращения: SD — стандартное отклонение; Q1/Q3 — 1 и 3 квартили."
+    "Сокращения: СО — стандартное отклонение; Q1/Q3 — 1 и 3 квартили."
   ) %>% 
   bold(part = "header") %>% 
   theme_vanilla() %>% 
@@ -636,7 +860,7 @@ tbl_blood <- blood %>%
 tbl_blood
 ```
 
-Показатели общего анализа крови на исходном уровне в группах Траумеля и диклофенака в целом сопоставимы. Значения гемоглобина и тромбоцитов практически совпадали по средним и медианам, а межквартильные интервалы и диапазоны существенно перекрывались. Для лейкоцитов отмечалась тенденция к несколько более высоким значениям в группе Траумеля (среднее 6,85 (SD 1,87) ×10\^9/л против 6,38 (SD 1,33) ×10\^9/л в группе диклофенака).
+Показатели общего анализа крови на исходном уровне в группах Траумеля и диклофенака в целом сопоставимы. Значения гемоглобина и тромбоцитов практически совпадали по средним и медианам, а межквартильные интервалы и диапазоны существенно перекрывались. Для лейкоцитов отмечалась тенденция к несколько более высоким значениям в группе Траумеля (среднее 6,96 (СО 2,05) ×10\^9/л против 6,38 (СО 1,36) ×10\^9/л в группе диклофенака).
 
 Таким образом, представленные гематологические параметры не демонстрируют клинически значимой разницы на старте исследования, группы сопоставимы по этим показателям
 
@@ -718,14 +942,14 @@ flextable(vit_wide) %>%
   valign(part = "all", valign = "center") %>% 
   merge_v(j = c("PARAM", "VISIT")) %>% 
   
-  set_caption("Таблица Х. Жизненно-важные показатели пациентов") %>%
+  set_caption("Таблица Х. Жизненно-важные показатели пациентов (популяция безопасности)") %>%
   
   add_footer_lines(values = 
-    "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПроценты рассчитаны от числа пациентов в соответствующей группе."
+    "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПримечание: проценты рассчитаны от числа пациентов в соответствующей группе."
   ) %>%
   
   theme_vanilla() %>% 
   autofit()
 ```
 
-В таблице представлена доля пациентов с нормальными и отклонёнными от нормы показателями жизненно важных функций (АД, температура, ЧДД, ЧСС) на трёх визитах в группах Траумеля и диклофенака. В целом по всем параметрам на каждом визите преобладали значения в пределах нормы, а доля отклонений была низкой.Серьезных нежелательных эффектов также не выявлено.
+В таблице представлены результаты оценки показателей жизненно важных функций (АД, температура, ЧДД, ЧСС) на каждом визите в группах Траумеля и Диклофенака. В целом, по всем параметрам на каждом визите преобладали значения в пределах нормы, а доля отклонений была низкой.
