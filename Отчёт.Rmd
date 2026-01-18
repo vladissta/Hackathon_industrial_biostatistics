@@ -19,7 +19,6 @@ specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet =
 ```
 
 # Характеристики пациентов
-
 ## Демография
 
 Создадим отдельный датасет с антропологическими и демографическими характеристиками.
@@ -101,8 +100,60 @@ paste0("Таким образом, согласно критериям вклю�
 
 ## Клинический анализ крови
 
-```{r oak}
+```{r oak - V1, message=FALSE, warning=FALSE}
 
+raw_data %>% 
+  select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
+  mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
+         ARM = fct_recode(
+      ARM,
+      "Диклофенак" = "Diclofenac",
+      "Траумель"   = "Traumeel"
+    )
+  ) -> blood 
+
+
+tbl_blood <- blood %>%
+  tbl_summary(
+    by = ARM,
+    type = all_continuous() ~ "continuous2",
+    statistic = all_continuous() ~ c(
+      "{mean} ({sd})",
+      "{median} ({p25}; {p75})",
+      "{min}–{max}"
+    ),
+    label = list(
+      V1_CBC_HGB ~ "Гемоглобин, г/л",
+      V1_CBC_WBC ~ "Лейкоциты, ×10^9/л",
+      V1_CBC_PLT ~ "Тромбоциты, ×10^9/л"
+    ),
+    digits = all_continuous() ~ 2,
+    missing = "no"
+  ) %>%
+  add_overall(last = TRUE) %>%
+  add_p() %>%
+  modify_table_body(
+    ~ .x %>%
+      mutate(
+        label = case_when(
+          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (SD)",
+          row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
+          row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
+          TRUE ~ label
+        )
+      )
+  ) %>%
+  modify_header(
+    label ~ "**Показатели**",
+    stat_0 ~ "**Итого**",
+    p.value ~ "**p-value**"
+  ) %>%
+  modify_footnote(
+    p.value ~ "Критерий Вилкоксона (ранговая сумма)."
+  ) %>%
+  bold_labels()
+
+tbl_blood
 ```
 
 ## Жизненно-важные показатели
@@ -146,7 +197,6 @@ tab_wide <- tab_full %>%
   mutate(VISIT = paste0("Визит ", VISIT))
 
 ```
-
 
 ```{r}
 flextable(tab_wide) %>%
