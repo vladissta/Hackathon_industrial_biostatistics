@@ -102,14 +102,14 @@ paste0("Таким образом, согласно критериям вклю�
 
 ```{r oak - V1, message=FALSE, warning=FALSE}
 
-raw_data %>% 
+raw_data %>% filter(STUDY_POPULATION == 1) %>%
   select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
   mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
          ARM = fct_recode(
       ARM,
       "Диклофенак" = "Diclofenac",
       "Траумель"   = "Traumeel"
-    )
+    ), ARM = fct_relevel(ARM, "Траумель", "Диклофенак")
   ) -> blood 
 
 
