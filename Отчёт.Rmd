@@ -16,10 +16,6 @@ library(gtsummary)
 raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 ```
 
-Для описания количественных переменных будут использоваться количество наблюдений, среднее арифметическое значение и стандартное отклонение, медиана, нижний и верхний квартили, минимум и максимум.
-
-Категориальные переменные будут описаны абсолютными частотами (количество наблюдений) и долями, выраженными в процентах.
-
 # Характеристики пациентов
 
 ## Демография и иные исходные характеристики
@@ -52,7 +48,7 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 
 ## Клинический анализ крови
 
-```{r oak - V1}
+```{r oak - V1, message=FALSE, warning=FALSE}
 
 raw_data %>% 
   select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
@@ -64,14 +60,15 @@ raw_data %>%
     )
   ) -> blood 
 
+
 tbl_blood <- blood %>%
   tbl_summary(
     by = ARM,
     type = all_continuous() ~ "continuous2",
     statistic = all_continuous() ~ c(
-      "Среднее (SD) = {mean} ({sd})",
-      "Медиана (Q1; Q3) = {median} ({p25}; {p75})",
-      "Мин.; Макс. = {min}; {max}"
+      "{mean} ({sd})",
+      "{median} ({p25}; {p75})",
+      "{min}–{max}"
     ),
     label = list(
       V1_CBC_HGB ~ "Гемоглобин, г/л",
@@ -81,13 +78,30 @@ tbl_blood <- blood %>%
     digits = all_continuous() ~ 2,
     missing = "no"
   ) %>%
-  add_overall(last = TRUE) %>%        
-  add_p() %>%                         
+  add_overall(last = TRUE) %>%
+  add_p() %>%
+  modify_table_body(
+    ~ .x %>%
+      mutate(
+        label = case_when(
+          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (SD)",
+          row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
+          row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
+          TRUE ~ label
+        )
+      )
+  ) %>%
+  modify_header(
+    label ~ "**Показатели**",
+    stat_0 ~ "**Итого**",
+    p.value ~ "**p-value**"
+  ) %>%
+  modify_footnote(
+    p.value ~ "Критерий Вилкоксона (ранговая сумма)."
+  ) %>%
   bold_labels()
 
 tbl_blood
-
-
 ```
 
 ## Жизненно-важные показатели
