@@ -48,6 +48,23 @@ library(pastecs)
 library(broom)
 ```
 
+```{r}
+theme_custom <- 
+  theme(
+    axis.line = element_line(colour = "grey", linewidth = 0.5),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 11),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+
+set_theme(theme_custom)
+```
+
+
 ```{r load, message=FALSE}
 raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet = 1) 
@@ -438,17 +455,7 @@ ggplot(plot_1, aes(x = VISIT, y = `Среднее`, color = GROUP, group = GROUP
     y = "Средняя интенсивность боли по ВАШ, мм",
     color = "Группа"
   ) +
-  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue")) +
-  theme(
-    axis.line = element_line(colour = "grey", linewidth = 0.5),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 11),
-    plot.title = element_text(size = 14, face = "bold"),
-    plot.subtitle = element_text(size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 11),
-    panel.grid.minor = element_blank()
-  )
+  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue"))
 
 ```
 
