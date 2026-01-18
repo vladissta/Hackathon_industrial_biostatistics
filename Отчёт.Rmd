@@ -87,10 +87,11 @@ adsl <- raw_data %>%
                 V1_ANT_WEIGHTKG,
                 V1_ANT_BMI)
 
-adsl %>% mutate(ARM = recode(as.character(ARM),
+adsl %>% mutate(ARM = recode_factor(as.character(ARM),
                  "Traumeel" = "Траумель",
-                 "Diclofenac" = "Диклофенак")
-  ) %>% select(-USUBJID) %>% 
+                 "Diclofenac" = "Диклофенак"),
+                ARM = factor(ARM, levels=c("Траумель", "Диклофенак"))
+  )%>% select(-USUBJID) %>% 
 tbl_summary(
     by = ARM,
     type = all_continuous() ~ "continuous2",
@@ -659,9 +660,9 @@ ecg_full <- bind_rows(ecg_by_arm, ecg_all) %>%
                    "0" = "Норма",
                    "1" = "Отклонение от нормы"),
     ARM = recode(as.character(ARM),
-                 "Traumeel" = "Траумель",
-                 "Diclofenac" = "Диклофенак")
-  )
+                 "Traumeel" = "Траумель\nN = 23",
+                 "Diclofenac" = "Диклофенак\nN = 25")) %>% 
+  arrange(desc(ARM))
 
 
 ecg_wide <- ecg_full %>%
@@ -821,8 +822,9 @@ vit_full <- bind_rows(vit_by_arm, vit_all) %>%
                           "0" = "Норма",
                           "1" = "Отклонение от нормы"),
          ARM = dplyr::recode(as.character(ARM),
-                          "Traumeel" = "Траумель",
-                          "Diclofenac" = "Диклофенак"))
+                          "Traumeel" = "Траумель\nN = 23",
+                          "Diclofenac" = "Диклофенак\nN = 25")) %>% 
+  arrange(desc(ARM))
 
 vit_wide <- vit_full %>%
   dplyr::select(PARAM, VISIT, value, 
