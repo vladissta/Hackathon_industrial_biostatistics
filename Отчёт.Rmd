@@ -121,29 +121,16 @@ raw_data <- raw_data %>% mutate(
   select(-V1_VAS_DIFF)
 ```
 
-```{r echo=FALSE}
-paste0("Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациентов.")
-```
+Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% pull(PATIENTS_AFTER_SCREENING)` пациентов.
 
-```{r echo=FALSE}
-paste0("Из-за антропометрических и демографических показателей (ИМТ, возраст) в дальнейший анализ не вошли ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациента.")
-```
 
-```{r echo=FALSE}
-paste0("Из-за несоответствия критерию оценки ВАШ после теста ходьбы на 20 м (менее 40 или более 80 по 100-мм шкале) в дальнейший анализ не вошли ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациента.")
-```
+Из-за антропометрических и демографических показателей (ИМТ, возраст) в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента.
 
-```{r echo=FALSE}
-paste0("Из-за улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м в дальнейший анализ не вошли ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациентов.")
-```
+Из-за несоответствия критерия оценки ВАШ после теста ходьбы на 20 м (менее 40 или более 80 по 100-мм шкале) в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента.
+
+
+Из-за улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациентов.
+
 
 ```{r}
 adsl <- merge(
