@@ -215,6 +215,7 @@ final_VAS <- prep_VAS %>%
   left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
   mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
          CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
+         PERCCHVALUE=ifelse(BLFL==0, 100*CHVALUE/BLVALUE, NA_real_),
          VISIT=as.factor(VISIT),
          ARM=factor(ARM, levels = c("Traumeel", "Diclofenac")),
          VISIT=factor(VISIT, levels = c("V1", "V2", "V3")))
@@ -223,6 +224,7 @@ final_VAS_rus <- prep_VAS %>%
   left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
   mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
          CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
+         PERCCHVALUE=ifelse(BLFL==0, 100*CHVALUE/BLVALUE, NA_real_),
          VISIT=as.factor(VISIT),
          ARM=factor(ARM, levels = c("Traumeel", "Diclofenac"),
                     labels = c("Траумель", "Диклофенак")),
