@@ -1,14 +1,39 @@
 ---
 title: "Отчёт"
 output:
-  word_document: default
+  officedown::rdocx_document:
+    plots:
+      style: Normal
+      align: center
+      # caption:
+      #   style: Image Caption
+      #   pre: 'Figure '
+      #   sep: ': '
+    tables:
+      style: Table
+      layout: autofit
+      width: 1
+      # caption:
+        # style: Table Caption
+        # pre: 'Table '
+        # sep: ': '
+      conditional:
+        first_row: true
+        first_column: false
+        last_row: false
+        last_column: false
+        no_hband: false
+        no_vband: true
+      mapstyles:
+        Normal: ['First Paragraph', 'Author', 'Date']
   html_document:
     df_print: paged
 date: "2026-01-18"
 ---
 
 ```{r setup, include=FALSE, warning=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, dpi = 150, fig.width=6, fig.height=4)
 
 library(tidyverse)
 library(gtsummary)
@@ -16,8 +41,7 @@ library(readxl)
 library(flextable) 
 library(knitr)
 library(stringr)
-```
-```{r}
+
 if (!require("pastecs")) install.packages("pastecs")
 if (!require("broom")) install.packages("broom")
 library(pastecs)
@@ -30,12 +54,20 @@ specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet =
 ```
 
 # Характеристики пациентов
+
 ## Демография
 
 Создадим отдельный датасет с антропологическими и демографическими характеристиками.
 
 ```{r dm, echo=FALSE}
-adsl <- raw_data %>% dplyr::select(ARM, USUBJID, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)
+adsl <- raw_data %>%
+  dplyr::select(ARM,
+                USUBJID,
+                V1_DEM_SEX,
+                V1_DEM_AGE,
+                V1_ANT_HEIGHTCM,
+                V1_ANT_WEIGHTKG,
+                V1_ANT_BMI)
 
 adsl %>% mutate(ARM = recode(as.character(ARM),
                  "Traumeel" = "Траумель",
@@ -77,14 +109,16 @@ tbl_summary(
     label ~ "Показатели",
     stat_0 ~ "Все пациенты\nN = {N}",
   ) %>%
+  modify_footnote(everything() ~ NA) %>% 
   bold_labels() %>%
-  as_flex_table() %>% 
+  as_flex_table() %>%
   set_caption("Таблица 1. Демографические и антропометрические характеристики") %>% 
   bold(part = "header") %>% 
   theme_vanilla() %>% 
   autofit(part = 'body')
 ```
 
+По полу, возрасту и весу распределение сопоставимо: женщины преобладали в обеих группах (диклофенак — 21/29, 72%; Траумель — 19/29, 66%; всего — 40/58, 69%), мужчины составляли 28–34% (8/29, 28%; 10/29, 34%; всего 18/58, 31%).
 
 ## Критерии включения-невключения
 
@@ -128,29 +162,13 @@ raw_data <- raw_data %>% mutate(
   select(-V1_VAS_DIFF)
 ```
 
-```{r echo=FALSE}
-paste0("Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациентов.")
-```
+Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% pull(PATIENTS_AFTER_SCREENING)` пациентов.
 
-```{r echo=FALSE}
-paste0("Из-за антропометрических и демографических показателей (ИМТ, возраст) в дальнейший анализ не вошли ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациента.")
-```
+Из-за антропометрических и демографических показателей (ИМТ, возраст) в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента.
 
-```{r echo=FALSE}
-paste0("Из-за несоответствия критерию оценки ВАШ после теста ходьбы на 20 м (менее 40 или более 80 по 100-балльной шкале) в дальнейший анализ не вошли ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациента.")
-```
+Из-за несоответствия критерия оценки ВАШ после теста ходьбы на 20 м (менее 40 или более 80 по 100-мм шкале) в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента.
 
-```{r echo=FALSE}
-paste0("Из-за улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м в дальнейший анализ не вошли ", 
-       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>% 
-  pull(PATIENTS_AFTER_SCREENING), " пациентов.")
-```
+Из-за улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациентов.
 
 ```{r}
 adsl <- merge(
@@ -162,61 +180,82 @@ adsl <- merge(
 write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
 ```
 
-
 ```{r}
 data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
 ```
-
 
 # Анализ эффективности
 
 ## Интенсивность боли по ВАШ (в покое)
 
 ```{r VAS_prep}
+
 prep_VAS <- data_filtered %>% 
   select(c(contains("VAS"), USUBJID, ARM)) %>% 
   pivot_longer(cols = starts_with("V"),
     names_to = c("VISIT", "CONDITION"),
     names_pattern = "(V\\d)_PAIN_VAS(.*)",
-    values_to = "VALUE")
+    values_to = "VALUE"
+  )
 
-bl_VAS <- prep_VAS %>% 
-  filter(VISIT=="V1") %>% 
-  mutate(BLVALUE=VALUE) %>% 
+bl_VAS <- prep_VAS %>%
+  filter(VISIT == "V1") %>%
+  mutate(BLVALUE = VALUE) %>%
   select(-c(VISIT, VALUE, ARM))
 
 
-final_VAS <- prep_VAS %>% 
-  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
-  mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
-         CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
-         VISIT=as.factor(VISIT),
-         ARM=factor(ARM, levels = c("Traumeel", "Diclofenac")),
-         VISIT=factor(VISIT, levels = c("V1", "V2", "V3")))
+final_VAS <- prep_VAS %>%
+  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>%
+  mutate(
+    BLFL = ifelse(VISIT == "V1", 1, 0),
+    CHVALUE = ifelse(BLFL == 0, BLVALUE - VALUE, NA_real_),
+    PERCCHVALUE = ifelse(BLFL == 0, 100 * CHVALUE / BLVALUE, NA_real_),
+    VISIT = as.factor(VISIT),
+    ARM = factor(ARM, levels = c("Traumeel", "Diclofenac")),
+    VISIT = factor(VISIT, levels = c("V1", "V2", "V3"))
+  )
 
-final_VAS_rus <- prep_VAS %>% 
-  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
-  mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
-         CHVALUE=ifelse(BLFL==0, BLVALUE-VALUE, NA_real_),
-         VISIT=as.factor(VISIT),
-         ARM=factor(ARM, levels = c("Traumeel", "Diclofenac"),
-                    labels = c("Траумель", "Диклофенак")),
-         VISIT=factor(VISIT, levels = c("V1", "V2", "V3"), 
-                      labels = c("Визит 1\n(исходный уровень)", "Визит 2", "Визит 3")))
+final_VAS_rus <- prep_VAS %>%
+  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>%
+  mutate(
+    BLFL = ifelse(VISIT == "V1", 1, 0),
+    CHVALUE = ifelse(BLFL == 0, BLVALUE - VALUE, NA_real_),
+    PERCCHVALUE = ifelse(BLFL == 0, 100 * CHVALUE / BLVALUE, NA_real_),
+    VISIT = as.factor(VISIT),
+    ARM = factor(
+      ARM,
+      levels = c("Traumeel", "Diclofenac"),
+      labels = c("Траумель", "Диклофенак")
+    ),
+    VISIT = factor(
+      VISIT,
+      levels = c("V1", "V2", "V3"),
+      labels = c("Визит 1\n(исходный уровень)", "Визит 2", "Визит 3")
+    )
+  )
 
 final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 
 ```
 
-
 ```{r functions}
 
-f_num <- function(x, dig = globaldig, dec = globaldec, p = FALSE, pre = "", suf = "") {
-        n <- formatC(x, digits = dig, decimal.mark = dec, format = "f")
-        n <- ifelse(p == TRUE & x < 0.001, paste0("<0", dec, strrep("0", dig-1), "1"), n)
-        n <- ifelse(p == TRUE & x == 1, paste0(">0", dec, strrep("9", dig)), n)
-        n <- paste0(pre, n, suf)
-        return(n)
+f_num <- function(x,
+                  dig = globaldig,
+                  dec = globaldec,
+                  p = FALSE,
+                  pre = "",
+                  suf = "") {
+  n <- formatC(x,
+               digits = dig,
+               decimal.mark = dec,
+               format = "f")
+  n <- ifelse(p == TRUE &
+                x < 0.001, paste0("<0", dec, strrep("0", dig - 1), "1"), n)
+  n <- ifelse(p == TRUE &
+                x == 1, paste0(">0", dec, strrep("9", dig)), n)
+  n <- paste0(pre, n, suf)
+  return(n)
 }
 
 statlist <- c(
@@ -289,12 +328,13 @@ idvar <- "USUBJID"
 grvar <- "ARM" 
 visvar <- "VISIT"
 grcodes <- c("Траумель"="Traumeel", "Диклофенак"="Diclofenac")
+
 visits <- c("Визит 1\n(исходный уровень)",
             "Визит 2",
             "Визит 3")
 
-
 ```
+
 
 
 ```{r VAS_rest_table, warning=FALSE}
@@ -363,9 +403,54 @@ VAS_table <- res_final %>%
   set_caption("Таблица X. Оценка интенсивности боли по ВАШ (в покое), по визитам")
 
 VAS_table
-
 ```
 
+```{r, warning=FALSE}
+for_graphs <- res_obs %>%
+  filter(str_detect(PARAM, "^Среднее"))
+
+for_graphs <- for_graphs %>%
+  mutate(
+    Среднее = str_extract(VAL, "^\\d+,\\d+"),
+    СО = str_extract(VAL, "\\d+,\\d+\\)$")
+  ) %>%
+  mutate(
+    СО = str_remove(СО, "\\)$"),
+    Среднее = as.numeric(gsub(",", ".", Среднее)),
+    СО = as.numeric(gsub(",", ".", СО))
+  )
+
+plot_1 <- for_graphs %>%
+  filter(GROUP %in% c("Траумель", "Диклофенак"))
+
+ggplot(plot_1, aes(x = VISIT, y = `Среднее`, color = GROUP, group = GROUP)) +
+  geom_line(size = 1) +
+  geom_point(size = 3, position = position_dodge(width = 0.1)) +
+  geom_errorbar(aes(ymin = `Среднее` - `СО`, ymax = `Среднее` + `СО`), 
+                width = 0.1, size = 0.5, position = position_dodge(width = 0.1)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 100), 
+                     breaks = seq(0, 100, by = 10)) +
+  labs(
+    title = "Динамика средних значений\nинтенсивности боли по ВАШ в покое",
+    subtitle = "Траумель vs Диклофенак",
+    x = "Номер визита",
+    y = "Средняя интенсивность боли по ВАШ, мм",
+    color = "Группа"
+  ) +
+  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue")) +
+  theme(
+    axis.line = element_line(colour = "grey", linewidth = 0.5),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 11),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+
+```
 
 ```{r VAS_rest_result}
 my_data <- final_VAS %>% filter(CONDITION=="REST")
@@ -392,8 +477,7 @@ results <- my_data %>%
   select(VISIT, `p-value`, `Оценка разницы \nсредних (97.5% ДИ)`, estimate1, estimate2) %>%
   relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
   rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
-  flextable() %>% 
-	# set_table_properties(layout = "autofit", align="center", width = .9) %>% 
+  flextable() %>%
   theme_vanilla() %>%
   autofit() %>%
   align(align = "center", part = "all") %>%
@@ -404,7 +488,6 @@ results <- my_data %>%
 
 results
 ```
-
 
 ## Интенсивность боли по ВАШ (после нагрузки)
 
@@ -604,7 +687,9 @@ flextable(ecg_wide) %>%
   valign(part = "all", valign = "center") %>%
   merge_v(j = c("PARAM")) %>%
   
-    add_footer_lines(values = 
+  set_caption("Таблица Х. Показатели ЭКГ пациентов") %>%
+  
+  add_footer_lines(values = 
     "Проценты рассчитаны от числа пациентов в соответствующей группе."
   ) %>%
   
@@ -612,6 +697,8 @@ flextable(ecg_wide) %>%
   autofit()
 
 ```
+
+В таблице представлены результаты оценки ЭКГ по трём параметрам (QT-аномалии, нарушения ритма, изменения ST–T) в группах Траумеля и диклофенака. В обеих группах преобладали нормальные значения: доля пациентов без QT-аномалий составила 96% при диклофенаке и 91% при Траумеле (всего 94%), без нарушений ритма — 92% и 96% соответственно (всего 94%). Наиболее часто фиксировались изменения ST–T: отклонения отмечены у 16% пациентов в группе диклофенака и у 13% в группе Траумеля (всего 15%). В целом частота ЭКГ-отклонений была низкой и сопоставимой между группами; наиболее распространённой категорией отклонений являлись изменения ST–T.
 
 ## Клинический анализ крови
 
@@ -663,6 +750,10 @@ tbl_blood <- blood %>%
   ) %>%
   bold_labels() %>%
   as_flex_table() %>% 
+  set_caption("Таблица Х. Показатели клинического анализа крови пациентов") %>%
+  add_footer_lines(values = 
+    "Сокращения: SD — стандартное отклонение; Q1/Q3 — 1 и 3 квартили."
+  ) %>% 
   bold(part = "header") %>% 
   theme_vanilla() %>% 
   autofit(part = 'body')
@@ -670,12 +761,16 @@ tbl_blood <- blood %>%
 tbl_blood
 ```
 
+Показатели общего анализа крови на исходном уровне в группах Траумеля и диклофенака в целом сопоставимы. Значения гемоглобина и тромбоцитов практически совпадали по средним и медианам, а межквартильные интервалы и диапазоны существенно перекрывались. Для лейкоцитов отмечалась тенденция к несколько более высоким значениям в группе Траумеля (среднее 6,96 (SD 2,05) ×10\^9/л против 6,38 (SD 1,36) ×10\^9/л в группе диклофенака).
+
+Таким образом, представленные гематологические параметры не демонстрируют клинически значимой разницы на старте исследования, группы сопоставимы по этим показателям
+
 ## Жизненно-важные показатели
 
 ```{r vs}
 df_vit <- 
   data_filtered %>% dplyr::select(ARM, contains('_VIT_')) %>% 
-  mutate(across(contains('_VIT_'), factor, levels=c('0','1')),
+  mutate(across(contains('_VIT_'), \(x) factor(x, levels=c('0','1'))),
          ARM = as.factor(ARM)) %>% 
     pivot_longer(
     cols = contains('_VIT_'),
@@ -747,6 +842,8 @@ flextable(vit_wide) %>%
   valign(part = "all", valign = "center") %>% 
   merge_v(j = c("PARAM", "VISIT")) %>% 
   
+  set_caption("Таблица Х. Жизненно-важные показатели пациентов") %>%
+  
   add_footer_lines(values = 
     "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПроценты рассчитаны от числа пациентов в соответствующей группе."
   ) %>%
@@ -754,3 +851,5 @@ flextable(vit_wide) %>%
   theme_vanilla() %>% 
   autofit()
 ```
+
+В таблице представлена доля пациентов с нормальными и отклонёнными от нормы показателями жизненно важных функций (АД, температура, ЧДД, ЧСС) на трёх визитах в группах Траумеля и диклофенака. В целом по всем параметрам на каждом визите преобладали значения в пределах нормы, а доля отклонений была низкой.Серьезных нежелательных эффектов также не выявлено.
