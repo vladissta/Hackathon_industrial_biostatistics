@@ -390,6 +390,8 @@ for_graphs <- for_graphs %>%
     СО = as.numeric(gsub(",", ".", СО))
   )
 
+library(ggplot2)
+
 plot_1 <- for_graphs %>%
   filter(GROUP %in% c("Траумель", "Диклофенак"))
 
