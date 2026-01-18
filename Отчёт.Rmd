@@ -376,6 +376,54 @@ res_final <- res_obs %>%
 
 
 ```{r}
+for_graphs <- res_obs %>%
+  filter(str_detect(PARAM, "^Среднее"))
+
+for_graphs <- for_graphs %>%
+  mutate(
+    Среднее = str_extract(VAL, "^\\d+,\\d+"),
+    СО = str_extract(VAL, "\\d+,\\d+\\)$")
+  ) %>%
+  mutate(
+    СО = str_remove(СО, "\\)$"),
+    Среднее = as.numeric(gsub(",", ".", Среднее)),
+    СО = as.numeric(gsub(",", ".", СО))
+  )
+
+plot_1 <- for_graphs %>%
+  filter(GROUP %in% c("Траумель", "Диклофенак"))
+
+ggplot(plot_1, aes(x = VISIT, y = `Среднее`, color = GROUP, group = GROUP)) +
+  geom_line(size = 1) +
+  geom_point(size = 3, position = position_dodge(width = 0.1)) +
+  geom_errorbar(aes(ymin = `Среднее` - `СО`, ymax = `Среднее` + `СО`), 
+                width = 0.1, size = 0.5, position = position_dodge(width = 0.1)) +
+  theme_minimal() +
+  scale_y_continuous(limits = c(0, 100), 
+                     breaks = seq(0, 100, by = 10)) +
+  labs(
+    title = "Динамика средних значений интенсивности боли по ВАШ в покое",
+    subtitle = "Траумель vs Диклофенак",
+    x = "Номер визита",
+    y = "Средняя интенсивность боли по ВАШ, мм",
+    color = "Группа"
+  ) +
+  scale_color_manual(values = c("Траумель" = "red", "Диклофенак" = "blue")) +
+  theme(
+    axis.line = element_line(colour = "grey", linewidth = 0.5),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 11),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 11),
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+
+```{r}
 my_data <- final_VAS %>% filter(CONDITION=="REST")
 
 results <- my_data %>%
