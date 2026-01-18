@@ -131,7 +131,6 @@ tbl_blood <- blood %>%
     missing = "no"
   ) %>%
   add_overall(last = TRUE) %>%
-  add_p() %>%
   modify_table_body(
     ~ .x %>%
       mutate(
@@ -146,10 +145,6 @@ tbl_blood <- blood %>%
   modify_header(
     label ~ "**Показатели**",
     stat_0 ~ "**Итого**",
-    p.value ~ "**p-value**"
-  ) %>%
-  modify_footnote(
-    p.value ~ "Критерий Вилкоксона (ранговая сумма)."
   ) %>%
   bold_labels() %>% 
   as_flex_table() %>% 
