@@ -8,4 +8,10 @@ date: "2026-01-18"
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(readxl)
 ```
+
+```{r load}
+raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
+```
+
