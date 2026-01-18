@@ -76,6 +76,11 @@ paste0("Таким образом, согласно критериям вклю�
   pull(PATIENTS_AFTER_SCREENING), " пациентов.")
 ```
 
+```{r}
+data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
+```
+
+
 # Анализ эффективности
 
 ## Интенсивность боли по ВАШ (в покое)
@@ -102,7 +107,7 @@ paste0("Таким образом, согласно критериям вклю�
 
 ```{r oak - V1, message=FALSE, warning=FALSE}
 
-raw_data %>% filter(STUDY_POPULATION == 1) %>%
+data_filtered %>% 
   select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
   mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
          ARM = fct_recode(
@@ -143,11 +148,12 @@ tbl_blood <- blood %>%
       )
   ) %>%
   modify_header(
-    label ~ "**Показатели**",
-    stat_0 ~ "**Все пациенты**",
+    label ~ "Показатели",
+    stat_0 ~ "Все пациенты\nN = {N}",
   ) %>%
-  bold_labels() %>% 
+  bold_labels() %>%
   as_flex_table() %>% 
+  bold(part = "header") %>% 
   theme_vanilla() %>% 
   autofit(part = 'body')
 
@@ -157,7 +163,27 @@ tbl_blood
 ## Жизненно-важные показатели
 
 ```{r vs}
-n_patients = df %>% nrow()
+n_patients = data_filtered %>% nrow()
+
+df_vit <- 
+  data_filtered %>% select(ARM, contains('_VIT_')) %>% 
+  mutate(across(contains('_VIT_'), factor, levels=c('0','1')),
+         ARM = as.factor(ARM)) %>% 
+    pivot_longer(
+    cols = contains('_VIT_'),
+    names_to = c("VISIT", "PARAM"),
+    names_pattern = "^V(\\d+)_VIT_(.*)_ABN$",
+    values_to = "value"
+  ) %>%
+  mutate(
+    VISIT = as.integer(VISIT),
+    PARAM = recode(PARAM,
+      "HR"   = "ЧСС",
+      "RR"   = "ЧДД",
+      "BP"   = "АД",
+      "TEMP" = "Температура"
+    ))
+  
 
 denom_by_arm <- df_vit %>%
   group_by(PARAM, VISIT, ARM) %>%
