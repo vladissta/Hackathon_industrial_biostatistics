@@ -1,6 +1,7 @@
 ---
 title: "Отчёт"
 output:
+  word_document: default
   html_document:
     df_print: paged
 date: "2026-01-18"
@@ -208,7 +209,7 @@ final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 ```
 
 
-```{r VAS_rest}
+```{r}
 library(flextable)
 globaldec <- ","
 globaldig <- 2
@@ -377,59 +378,8 @@ results <- my_data %>%
 	set_table_properties(layout = "autofit", align="center", width = .9)
 
 results
-# 
-# 
-# varcodes <- "VALUE" 
-# varnames <- "Наблюдаемое значение" 
-# dat <- my_data %>%
-#   as.data.frame() %>% 
-#   select(all_of(c(ID = idvar, GROUP = grvar, VISIT = visvar)), all_of(varcodes))
-#         
-#   dat <- rbind(dat, mutate(dat, GROUP = factor("Все пациенты")))
-#         
-#         ltbl <- dat %>%
-#                 complete(GROUP, VISIT) %>%
-#                 filter(VISIT %in% visits) %>%
-#                 mutate(across(.cols = all_of(varcodes), .fns = as.numeric)) %>% 
-#                 pivot_longer(cols = all_of(varcodes), names_to = "VAR", values_to = "VAL", 
-#                              names_transform = list(VAR = fct_inorder)) %>% 
-#                 mutate(VAL = as.numeric(VAL)) %>%
-#                 group_by(VAR, VISIT, GROUP) %>%
-#                 do(sumnum(.$VAL)) # sumnum.R
-#         
-#         # Набор данных с описательной статистикой
-#         ttbl <- ltbl %>% 
-#                 pivot_longer(cols = c(-VAR, -VISIT, - GROUP), names_to = "PARAM", values_to = "VAL", 
-#                              names_transform = list(PARAM = fct_inorder)) %>% 
-#                 arrange(VAR, VISIT, GROUP, PARAM) %>% 
-#                 ungroup() %>% 
-#                 mutate(VAR = case_when(VAR=={{varcodes}}~{{varnames}}), 
-#                        VAR = factor(VAR, levels = varnames))
-#         
-# varcodes <- "VALUE" 
-# varnames <- "Наблюдаемое значение" 
-# res_obs <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
-#                     varcodes, varnames, visits, total = "Все пациенты", 
-#                     col_name="Наблюдаемое значение")
-# 
-# varcodes <- "CHVALUE" 
-# varnames <- "Изменение от исходного уровня" 
-# res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
-#                     varcodes, varnames, visits, total = "Все пациенты", 
-#                     col_name="Изменение от исходного уровня") %>% 
-#   rowwise() %>% 
-#   mutate(VAL=ifelse(VISIT=="V1", "-", VAL)) %>% 
-#   ungroup()
-# 
-# res_final <- res_obs %>% 
-#   bind_rows(res_ch)
-
 ```
 
-
-```{r VAS_rest}
-
-```
 
 ## Интенсивность боли по ВАШ (после нагрузки)
 
