@@ -17,7 +17,7 @@ library(gtsummary)
 
 
 ```{r echo=FALSE}
-data <- read_csv('./data/raw/team6_ecrf_wide.csv')
+data <- read_csv('./data/original/team6_ecrf_wide.csv')
 ```
 
 # Демография

@@ -357,7 +357,6 @@ display: none;
 </div>
 
 
-<pre class="r"><code>data &lt;- read_csv(&#39;./data/team6_ecrf_wide.csv&#39;)</code></pre>
 <pre><code>## Rows: 58 Columns: 31
 ## ── Column specification ────────────────────────────────────────────────────────
 ## Delimiter: &quot;,&quot;
@@ -370,7 +369,6 @@ display: none;
 <h1>Демография</h1>
 <p>Создадим отдельный датасет с антропологическими и демографическими
 характеристиками.</p>
-<pre class="r"><code>adsl &lt;- data %&gt;% select(ARM, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)</code></pre>
 <p>Определим субъектов, которые входят в исследуемую популяцию:</p>
 <ul>
 <li>Пациенты с ИМТ менее 38 кг/м^2;</li>
@@ -417,11 +415,9 @@ display: none;
     TRUE ~ 0
 )) %&gt;% 
   select(-V1_VAS_DIFF)</code></pre>
-<pre class="r"><code>data %&gt;% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION))</code></pre>
-<pre><code>## # A tibble: 1 × 1
-##   PATIENTS_AFTER_SCREENING
-##                      &lt;dbl&gt;
-## 1                       48</code></pre>
+<p>Таким образом, согласно критериям включения и невключения в
+исследуемую популяцию входит</p>
+<pre><code>## [1] &quot;Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит 48 пациентов.&quot;</code></pre>
 </div>
 
 
