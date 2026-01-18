@@ -144,7 +144,7 @@ tbl_blood <- blood %>%
   ) %>%
   modify_header(
     label ~ "**Показатели**",
-    stat_0 ~ "**Итого**",
+    stat_0 ~ "**Все пациенты**",
   ) %>%
   bold_labels() %>% 
   as_flex_table() %>% 
