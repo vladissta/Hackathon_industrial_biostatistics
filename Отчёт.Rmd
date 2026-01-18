@@ -151,7 +151,10 @@ tbl_blood <- blood %>%
   modify_footnote(
     p.value ~ "Критерий Вилкоксона (ранговая сумма)."
   ) %>%
-  bold_labels()
+  bold_labels() %>% 
+  as_flex_table() %>% 
+  theme_vanilla() %>% 
+  autofit(part = 'body')
 
 tbl_blood
 ```
