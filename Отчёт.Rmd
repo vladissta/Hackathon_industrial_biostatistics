@@ -26,6 +26,8 @@ output:
         no_vband: true
       mapstyles:
         Normal: ['First Paragraph', 'Author', 'Date']
+  html_document:
+    df_print: paged
 date: "2026-01-18"
 ---
 
