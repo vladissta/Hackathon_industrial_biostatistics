@@ -16,8 +16,7 @@ library(readxl)
 library(flextable) 
 library(knitr)
 library(stringr)
-```
-```{r}
+
 if (!require("pastecs")) install.packages("pastecs")
 if (!require("broom")) install.packages("broom")
 library(pastecs)
@@ -77,8 +76,9 @@ tbl_summary(
     label ~ "Показатели",
     stat_0 ~ "Все пациенты\nN = {N}",
   ) %>%
+  modify_footnote(everything() ~ NA) %>% 
   bold_labels() %>%
-  as_flex_table() %>% 
+  as_flex_table() %>%
   set_caption("Таблица 1. Демографические и антропометрические характеристики") %>% 
   bold(part = "header") %>% 
   theme_vanilla() %>% 
@@ -173,7 +173,7 @@ data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
 ## Интенсивность боли по ВАШ (в покое)
 
 ```{r VAS_prep}
-prep_VAS <- raw_data %>% 
+prep_VAS <- data_filtered %>% 
   select(c(contains("VAS"), USUBJID, ARM)) %>% 
   pivot_longer(cols = starts_with("V"),
     names_to = c("VISIT", "CONDITION"),
@@ -210,7 +210,6 @@ final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 
 
 ```{r}
-library(flextable)
 globaldec <- ","
 globaldig <- 2
 
@@ -349,7 +348,7 @@ res_final <- res_obs %>%
 ```
 
 
-```{r VAS_rest}
+```{r}
 my_data <- final_VAS %>% filter(CONDITION=="REST")
 
 results <- my_data %>%
