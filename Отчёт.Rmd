@@ -69,8 +69,6 @@ data <- data %>% mutate(
   select(-V1_VAS_DIFF)
 ```
 
-Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит
-
 ```{r echo=FALSE}
 paste0("Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит ", 
        data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% 

@@ -17,7 +17,7 @@ library(gtsummary)
 
 
 ```{r}
-data <- read_csv('./data/team6_ecrf_wide.csv')
+data <- read_csv('./data/original/team6_ecrf_wide.csv')
 ```
 
 # Заявленные критерии
@@ -166,7 +166,7 @@ write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
 
 ```{r}
 data <- data %>% mutate(
-  dem_antro_ok=case_when(
+  V1_ANTRO_OK=case_when(
     (V1_ANT_BMI <= 38 & V1_DEM_AGE >= 40 & V1_DEM_AGE <=80) ~ 1,
     TRUE ~ 0
   ),
@@ -199,19 +199,16 @@ data <- data %>% mutate(
 
 ```{r}
 data <- data %>% mutate(
-  all_ok=case_when(
-    (dem_antro_ok == 1 & temp_ok == 1 & V1_VAS_PAIN_OK == 1 & V1_VAS_DIFF_OK == 1) ~ 1,
+  STUDY_POPULATION=case_when(
+    (V1_ANTRO_OK == 1 & V1_VAS_PAIN_OK == 1 & V1_VAS_DIFF_OK == 1) ~ 1,
     TRUE ~ 0
   )
 ) 
 ```
 
-```{r}
-data %>% select(all_ok, dem_antro_ok, temp_ok, V1_VAS_PAIN_OK, V1_VAS_DIFF_OK)
-```
 
 ```{r}
-subj_status <- data %>% select(USUBJID, all_ok)
+subj_status <- data %>% select(USUBJID, STUDY_POPULATION)
 ```
 
 
