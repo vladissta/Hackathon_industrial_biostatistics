@@ -453,6 +453,7 @@ results <- my_data %>%
   relocate(VISIT, estimate1, estimate2, `Оценка разницы \nсредних (97.5% ДИ)`,`p-value`) %>% 
   rename(`Траумель`=estimate1, `Диклофенак`=estimate2, `Изменение интенсивности \nболи по ВАШ (мм)`=VISIT) %>% 
   flextable() %>% 
+  set_caption("Таблица 2. Результат анализа изменения интенсивность боли в покое") %>%
 	set_table_properties(align="center", width = .9) %>% 
   autofit() %>% 
   theme_vanilla()
@@ -555,7 +556,9 @@ flextable(ecg_wide) %>%
   valign(part = "all", valign = "center") %>%
   merge_v(j = c("PARAM")) %>%
   
-    add_footer_lines(values = 
+  set_caption("Таблица Х. Показатели ЭКГ пациентов") %>%
+  
+  add_footer_lines(values = 
     "Проценты рассчитаны от числа пациентов в соответствующей группе."
   ) %>%
   
@@ -616,6 +619,7 @@ tbl_blood <- blood %>%
   ) %>%
   bold_labels() %>%
   as_flex_table() %>% 
+  set_caption("Таблица Х. Показатели клинического анализа крови пациентов") %>%
   add_footer_lines(values = 
     "Сокращения: SD — стандартное отклонение; Q1/Q3 — 1 и 3 квартили."
   ) %>% 
@@ -706,6 +710,8 @@ flextable(vit_wide) %>%
         align = "center") %>%
   valign(part = "all", valign = "center") %>% 
   merge_v(j = c("PARAM", "VISIT")) %>% 
+  
+  set_caption("Таблица Х. Жизненно-важные показатели пациентов") %>%
   
   add_footer_lines(values = 
     "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПроценты рассчитаны от числа пациентов в соответствующей группе."
