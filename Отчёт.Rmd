@@ -27,8 +27,8 @@ specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet =
 
 Создадим отдельный датасет с антропологическими и демографическими характеристиками.
 
-```{r dm echo=FALSE}
-adsl <- raw_data %>% select(ARM, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)
+```{r dm, echo=FALSE}
+adsl <- raw_data %>% dplyr::select(ARM, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)
 write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
 ```
 
@@ -102,13 +102,13 @@ data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
 # Анализ безопасности
 
 ```{r}
-n_patients <- df %>% nrow()
+n_patients <- data_filtered %>% nrow()
 ```
 
 ## ЭКГ
 
 ```{r ecg}
-classified_by_arm <- df %>%
+classified_by_arm <- data_filtered %>%
   select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -118,8 +118,8 @@ classified_by_arm <- df %>%
   group_by(PARAM, ARM) %>%
   summarise(overall = n(), .groups = "drop")
 
-tab_by_arm <- df %>%
-  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+tab_by_arm <- data_filtered %>%
+  dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
     names_to = "PARAM",
@@ -130,8 +130,8 @@ tab_by_arm <- df %>%
   left_join(classified_by_arm, by = c("PARAM", "ARM")) %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
 
-tab_all <- df %>%
-  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+tab_all <- data_filtered %>%
+  dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   mutate(ARM = "Все пациенты") %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -154,7 +154,7 @@ tab_full <- bind_rows(tab_by_arm, tab_all) %>%
 
 
 tab_wide <- tab_full %>%
-  select(PARAM, value, ARM, n_perc) %>%
+  dplyr::select(PARAM, value, ARM, n_perc) %>%
   pivot_wider(
     names_from = ARM,
     values_from = n_perc
@@ -196,7 +196,7 @@ flextable(tab_wide) %>%
 ```{r oak - V1, message=FALSE, warning=FALSE}
 
 data_filtered %>% 
-  select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
+  dplyr::select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
   mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
          ARM = fct_recode(
       ARM,
@@ -252,7 +252,7 @@ tbl_blood
 
 ```{r vs}
 df_vit <- 
-  data_filtered %>% select(ARM, contains('_VIT_')) %>% 
+  data_filtered %>% dplyr::select(ARM, contains('_VIT_')) %>% 
   mutate(across(contains('_VIT_'), factor, levels=c('0','1')),
          ARM = as.factor(ARM)) %>% 
     pivot_longer(
@@ -297,7 +297,7 @@ tab_full <- bind_rows(tab_by_arm, tab_all) %>%
                           "Diclofenac" = "Диклофенак"))
 
 tab_wide <- tab_full %>%
-  select(PARAM, VISIT, value, 
+  dplyr::select(PARAM, VISIT, value, 
          ARM, n_perc) %>%
   pivot_wider(
     names_from  = ARM,
