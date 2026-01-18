@@ -836,7 +836,7 @@ tbl_blood <- blood %>%
       mutate(
         label = case_when(
 
-          row_type == "level" & str_detect(label, "^Mean \\(СО\\)$") ~ "Среднее (СО)",
+          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (СО)",
           row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
           row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
           TRUE ~ label
