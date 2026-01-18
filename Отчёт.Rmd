@@ -1,14 +1,21 @@
 ---
 title: "Отчёт"
-output: word_document
+output:
+  word_document: default
+  html_document:
+    df_print: paged
 date: "2026-01-18"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(gtsummary)
 library(readxl)
+library(flextable) 
+library(knitr)
+library(stringr)
 ```
 ```{r}
 if (!require("pastecs")) install.packages("pastecs")
@@ -17,18 +24,152 @@ library(pastecs)
 library(broom)
 ```
 
-```{r load}
+```{r load, message=FALSE}
 raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
+specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet = 1) 
 ```
 
 # Характеристики пациентов
-## Демография и иные исходные характеристики
+## Демография
 
-```{r dm}
+Создадим отдельный датасет с антропологическими и демографическими характеристиками.
 
+```{r dm, echo=FALSE}
+adsl <- raw_data %>% dplyr::select(ARM, USUBJID, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)
+
+adsl %>% mutate(ARM = recode(as.character(ARM),
+                 "Traumeel" = "Траумель",
+                 "Diclofenac" = "Диклофенак")
+  ) %>% select(-USUBJID) %>% 
+tbl_summary(
+    by = ARM,
+    type = all_continuous() ~ "continuous2",
+    statistic = all_continuous() ~ c(
+      "{mean} ({sd})",
+      "{median} ({p25}; {p75})",
+      "{min}–{max}"
+    ),
+    label = list(
+      V1_DEM_SEX ~ "Пол",
+      V1_DEM_AGE ~ "Возраст, лет",
+      V1_ANT_HEIGHTCM ~ "Рост, см",
+      V1_ANT_WEIGHTKG ~ "Вес, кг",
+      V1_ANT_BMI ~ "ИМТ, кг/м^2"     
+    ),
+    digits = all_continuous() ~ 2,
+    missing = "no"
+  ) %>%
+  add_overall(last = TRUE) %>%
+  modify_table_body(
+    ~ .x %>%
+      mutate(
+        label = case_when(
+          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (SD)",
+          row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
+          row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
+          row_type == "level" & str_detect(label, "F") ~ "Женский",
+          row_type == "level" & str_detect(label, "M") ~ "Мужской",
+          TRUE ~ label
+        )
+      )
+  ) %>%
+  modify_header(
+    label ~ "Показатели",
+    stat_0 ~ "Все пациенты\nN = {N}",
+  ) %>%
+  bold_labels() %>%
+  as_flex_table() %>% 
+  set_caption("Таблица 1. Демографические и антропометрические характеристики") %>% 
+  bold(part = "header") %>% 
+  theme_vanilla() %>% 
+  autofit(part = 'body')
 ```
 
+
+## Критерии включения-невключения
+
+Определим субъектов, которые входят в исследуемую популяцию:
+
+-   Пациенты с ИМТ менее 38 кг/м\^2;
+-   Пациенты возрастом от 40 до 80 лет;
+-   Пациенты, у которых на Визите 1 температура тела, измеренная в подмышечной впадине, менее 37,5 °С;
+-   Интенсивность боли в целевом коленном суставе по визуально-аналоговой шкале (ВАШ, 0-100 мм) после ходьбы на 20 м находится в диапазоне от 40 до 80 мм;
+-   Повышение интенсивности боли по ВАШ (0-100 мм) после ходьбы на 20 м более, чем на 20 мм.
+
+После анализа предоставленных данных следующие критерии включения были ослаблены
+
+-   Пациенты включаются в исследование вне зависимости от температуры тела на Визите 1, так как форма представления информации исследователем - "Отклонение температуры" (от нормальной);
+
+-   В исследование включались пациенты, у которых повышение интенсивности боли по ВАШ (0-100 мм) после ходьбы на 20 м более **0** мм.
+
+-   Так как информация о сопутствующих заболеваниях и состояниях не была предоставлена исследователем, эти критерии в ходе анализа не рассматривались.
+
+```{r}
+raw_data <- raw_data %>% mutate(
+  V1_ANTRO_OK = case_when(
+    (V1_ANT_BMI <= 38 & V1_DEM_AGE >= 40 & V1_DEM_AGE <=80) ~ 1,
+    TRUE ~ 0
+  )
+) %>% mutate(
+  V1_VAS_DIFF = V1_PAIN_VASWALK20M - V1_PAIN_VASREST,
+  V1_VAS_PAIN_OK = case_when(
+    V1_PAIN_VASWALK20M >= 40 & V1_PAIN_VASWALK20M <= 80 ~ 1,
+    TRUE ~ 0
+  ),
+  V1_VAS_DIFF_OK = case_when(
+    V1_VAS_DIFF > 0 ~ 1,
+    TRUE ~ 0
+  )
+) %>% mutate(
+  STUDY_POPULATION=case_when(
+    (V1_ANTRO_OK == 1 & V1_VAS_PAIN_OK == 1 & V1_VAS_DIFF_OK == 1) ~ 1,
+    TRUE ~ 0
+)) %>%
+  select(-V1_VAS_DIFF)
+```
+
+```{r echo=FALSE}
+paste0("Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит ", 
+       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% 
+  pull(PATIENTS_AFTER_SCREENING), " пациентов.")
+```
+
+```{r echo=FALSE}
+paste0("Из-за антропометрических и демографических показателей (ИМТ, возраст) в дальнейший анализ не вошли ", 
+       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>% 
+  pull(PATIENTS_AFTER_SCREENING), " пациента.")
+```
+
+```{r echo=FALSE}
+paste0("Из-за несоответствия критерию оценки ВАШ после теста ходьбы на 20 м (менее 40 или более 80 по 100-балльной шкале) в дальнейший анализ не вошли ", 
+       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>% 
+  pull(PATIENTS_AFTER_SCREENING), " пациента.")
+```
+
+```{r echo=FALSE}
+paste0("Из-за улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м в дальнейший анализ не вошли ", 
+       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>% 
+  pull(PATIENTS_AFTER_SCREENING), " пациентов.")
+```
+
+```{r}
+adsl <- merge(
+  adsl,
+  raw_data[, c("USUBJID", "STUDY_POPULATION")],
+  by = "USUBJID",
+  all.x = TRUE
+)
+write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
+```
+
+
+```{r}
+data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
+```
+
+
 # Анализ эффективности
+
 ## Интенсивность боли по ВАШ (в покое)
 
 ```{r VAS_prep}
@@ -68,7 +209,7 @@ final_VAS_total <- rbind(final_VAS, mutate(final_VAS, ARM = "Total"))
 ```
 
 
-```{r VAS_rest}
+```{r}
 library(flextable)
 globaldec <- ","
 globaldig <- 2
@@ -240,59 +381,8 @@ results <- my_data %>%
 	set_table_properties(layout = "autofit", align="center", width = .9)
 
 results
-# 
-# 
-# varcodes <- "VALUE" 
-# varnames <- "Наблюдаемое значение" 
-# dat <- my_data %>%
-#   as.data.frame() %>% 
-#   select(all_of(c(ID = idvar, GROUP = grvar, VISIT = visvar)), all_of(varcodes))
-#         
-#   dat <- rbind(dat, mutate(dat, GROUP = factor("Все пациенты")))
-#         
-#         ltbl <- dat %>%
-#                 complete(GROUP, VISIT) %>%
-#                 filter(VISIT %in% visits) %>%
-#                 mutate(across(.cols = all_of(varcodes), .fns = as.numeric)) %>% 
-#                 pivot_longer(cols = all_of(varcodes), names_to = "VAR", values_to = "VAL", 
-#                              names_transform = list(VAR = fct_inorder)) %>% 
-#                 mutate(VAL = as.numeric(VAL)) %>%
-#                 group_by(VAR, VISIT, GROUP) %>%
-#                 do(sumnum(.$VAL)) # sumnum.R
-#         
-#         # Набор данных с описательной статистикой
-#         ttbl <- ltbl %>% 
-#                 pivot_longer(cols = c(-VAR, -VISIT, - GROUP), names_to = "PARAM", values_to = "VAL", 
-#                              names_transform = list(PARAM = fct_inorder)) %>% 
-#                 arrange(VAR, VISIT, GROUP, PARAM) %>% 
-#                 ungroup() %>% 
-#                 mutate(VAR = case_when(VAR=={{varcodes}}~{{varnames}}), 
-#                        VAR = factor(VAR, levels = varnames))
-#         
-# varcodes <- "VALUE" 
-# varnames <- "Наблюдаемое значение" 
-# res_obs <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
-#                     varcodes, varnames, visits, total = "Все пациенты", 
-#                     col_name="Наблюдаемое значение")
-# 
-# varcodes <- "CHVALUE" 
-# varnames <- "Изменение от исходного уровня" 
-# res_ch <- describe_num(my_data, idvar, grvar, visvar, grcodes, 
-#                     varcodes, varnames, visits, total = "Все пациенты", 
-#                     col_name="Изменение от исходного уровня") %>% 
-#   rowwise() %>% 
-#   mutate(VAL=ifelse(VISIT=="V1", "-", VAL)) %>% 
-#   ungroup()
-# 
-# res_final <- res_obs %>% 
-#   bind_rows(res_ch)
-
 ```
 
-
-```{r VAS_rest}
-
-```
 
 ## Интенсивность боли по ВАШ (после нагрузки)
 
@@ -301,21 +391,241 @@ results
 ```
 
 # Анализ безопасности
+
+```{r}
+n_patients <- data_filtered %>% nrow()
+```
+
 ## ЭКГ
 
 ```{r ecg}
+ecg_classified_by_arm <- 
+  data_filtered %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM) %>%
+  summarise(overall = n(), .groups = "drop")
+
+ecg_by_arm <- data_filtered %>%
+  dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(ecg_classified_by_arm, by = c("PARAM", "ARM")) %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
+
+ecg_all <- data_filtered %>%
+  dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  mutate(ARM = "Все пациенты") %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / n_patients))
+
+ecg_full <- bind_rows(ecg_by_arm, ecg_all) %>%
+  mutate(
+    value = recode(as.character(value),
+                   "0" = "Норма",
+                   "1" = "Отклонение от нормы"),
+    ARM = recode(as.character(ARM),
+                 "Traumeel" = "Траумель",
+                 "Diclofenac" = "Диклофенак")
+  )
+
+
+ecg_wide <- ecg_full %>%
+  dplyr::select(PARAM, value, ARM, n_perc) %>%
+  pivot_wider(
+    names_from = ARM,
+    values_from = n_perc
+  ) %>%
+  arrange(PARAM, factor(value, levels = c("Норма", "Отклонение от нормы"))) %>%
+  mutate(PARAM = case_when(
+    str_detect(PARAM, "QT_ABN") ~ "QT-аномалия",
+    str_detect(PARAM, "RHYTHM_ABN") ~ "Нарушение ритма",
+    str_detect(PARAM, "STT_ABN") ~ "Изменения ST-T",
+    TRUE ~ PARAM
+  ))
+
+```
+
+```{r}
+
+flextable(ecg_wide) %>%
+
+  set_header_labels(
+    PARAM = "Параметр",
+    value = "Категория"
+  ) %>%
+  
+  bold(part = "header") %>%
+  align(part = "header", align = "center") %>%
+  align(j = c("PARAM"), part = "body", align = "left") %>%
+  align(j = "value", part = "body", align = "left") %>%
+  align(j = setdiff(names(ecg_wide), c("PARAM","value")),
+        part = "body", align = "center") %>%
+  valign(part = "all", valign = "center") %>%
+  merge_v(j = c("PARAM")) %>%
+  
+    add_footer_lines(values = 
+    "Проценты рассчитаны от числа пациентов в соответствующей группе."
+  ) %>%
+  
+  theme_vanilla() %>%
+  autofit()
 
 ```
 
 ## Клинический анализ крови
 
-```{r oak}
+```{r oak - V1, message=FALSE, warning=FALSE}
 
+data_filtered %>% 
+  dplyr::select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
+  mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
+         ARM = fct_recode(
+      ARM,
+      "Диклофенак" = "Diclofenac",
+      "Траумель"   = "Traumeel"
+    ), ARM = fct_relevel(ARM, "Траумель", "Диклофенак")
+  ) -> blood 
+
+
+tbl_blood <- blood %>%
+  tbl_summary(
+    by = ARM,
+    type = all_continuous() ~ "continuous2",
+    statistic = all_continuous() ~ c(
+      "{mean} ({sd})",
+      "{median} ({p25}; {p75})",
+      "{min}–{max}"
+    ),
+    label = list(
+      V1_CBC_HGB ~ "Гемоглобин, г/л",
+      V1_CBC_WBC ~ "Лейкоциты, ×10^9/л",
+      V1_CBC_PLT ~ "Тромбоциты, ×10^9/л"
+    ),
+    digits = all_continuous() ~ 2,
+    missing = "no"
+  ) %>%
+  add_overall(last = TRUE) %>%
+  modify_table_body(
+    ~ .x %>%
+      mutate(
+        label = case_when(
+          row_type == "level" & str_detect(label, "^Mean \\(SD\\)$") ~ "Среднее (SD)",
+          row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
+          row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
+          TRUE ~ label
+        )
+      )
+  ) %>%
+  modify_header(
+    label ~ "Показатели",
+    stat_0 ~ "Все пациенты\nN = {N}",
+  ) %>%
+  bold_labels() %>%
+  as_flex_table() %>% 
+  bold(part = "header") %>% 
+  theme_vanilla() %>% 
+  autofit(part = 'body')
+
+tbl_blood
 ```
 
 ## Жизненно-важные показатели
 
 ```{r vs}
+df_vit <- 
+  data_filtered %>% dplyr::select(ARM, contains('_VIT_')) %>% 
+  mutate(across(contains('_VIT_'), factor, levels=c('0','1')),
+         ARM = as.factor(ARM)) %>% 
+    pivot_longer(
+    cols = contains('_VIT_'),
+    names_to = c("VISIT", "PARAM"),
+    names_pattern = "^V(\\d+)_VIT_(.*)_ABN$",
+    values_to = "value"
+  ) %>%
+  mutate(
+    VISIT = as.integer(VISIT),
+    PARAM = recode(PARAM,
+      "HR"   = "ЧСС",
+      "RR"   = "ЧДД",
+      "BP"   = "АД",
+      "TEMP" = "Температура"
+    ))
+  
+
+vit_classified_by_arm <- df_vit %>%
+  group_by(PARAM, VISIT, ARM) %>%
+  summarise(overall = n(), .groups = "drop")
+
+vit_by_arm <- df_vit %>%
+  group_by(PARAM, VISIT, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(vit_classified_by_arm,
+            by = c("PARAM","VISIT","ARM")) %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100*n/overall))
+
+vit_all <- df_vit %>%
+  mutate(ARM = "Все пациенты") %>%
+  group_by(PARAM, VISIT, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100*n/n_patients))
+
+vit_full <- bind_rows(vit_by_arm, vit_all) %>%
+  mutate(value = dplyr::recode(as.character(value),
+                          "0" = "Норма",
+                          "1" = "Отклонение от нормы"),
+         ARM = dplyr::recode(as.character(ARM),
+                          "Traumeel" = "Траумель",
+                          "Diclofenac" = "Диклофенак"))
+
+vit_wide <- vit_full %>%
+  dplyr::select(PARAM, VISIT, value, 
+         ARM, n_perc) %>%
+  pivot_wider(
+    names_from  = ARM,
+    values_from = n_perc) %>%
+  arrange(PARAM, VISIT, 
+          factor(value, levels = c("Норма","Отклонение от нормы"))) %>% 
+  mutate(VISIT = paste0("Визит ", VISIT))
 
 ```
 
+```{r}
+flextable(vit_wide) %>%
+  set_header_labels(PARAM = "Параметр",
+                    VISIT = "Визит",
+                    value = "Категория") %>%
+  bold(part = "header") %>% 
+  align(part = "header", align = "center") %>%
+  align(j = c("PARAM", "VISIT"),
+          part = "body",
+          align = "left") %>%
+  align(j = "value", part = "body", align = "left") %>%
+  align(j = setdiff(names(vit_wide), c("PARAM", "VISIT", "value")),
+        part = "body",
+        align = "center") %>%
+  valign(part = "all", valign = "center") %>% 
+  merge_v(j = c("PARAM", "VISIT")) %>% 
+  
+  add_footer_lines(values = 
+    "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПроценты рассчитаны от числа пациентов в соответствующей группе."
+  ) %>%
+  
+  theme_vanilla() %>% 
+  autofit()
+```
