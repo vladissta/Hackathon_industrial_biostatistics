@@ -24,7 +24,7 @@ specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet =
 Создадим отдельный датасет с антропологическими и демографическими характеристиками.
 
 ```{r dm echo=FALSE}
-adsl <- data %>% select(ARM, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)
+adsl <- raw_data %>% select(ARM, V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI)
 write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
 ```
 
@@ -47,7 +47,7 @@ write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
 -   Так как информация о сопутствующих заболеваниях и состояниях не была предоставлена исследователем, эти критерии в ходе анализа не рассматривались.
 
 ```{r}
-data <- data %>% mutate(
+raw_data <- raw_data %>% mutate(
   V1_ANTRO_OK = case_when(
     (V1_ANT_BMI <= 38 & V1_DEM_AGE >= 40 & V1_DEM_AGE <=80) ~ 1,
     TRUE ~ 0
@@ -72,7 +72,7 @@ data <- data %>% mutate(
 
 ```{r echo=FALSE}
 paste0("Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит ", 
-       data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% 
+       raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% 
   pull(PATIENTS_AFTER_SCREENING), " пациентов.")
 ```
 
