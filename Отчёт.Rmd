@@ -113,10 +113,7 @@ raw_data <- raw_data %>% mutate(
 ```
 
 
-Из-за несоответствия следующим критериям включения/невключения в исследование не были включены `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)==0) %>% pull(PATIENTS_AFTER_SCREENING)` пациентов:
-- антропометрические и демографические показатели (`r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента)
-- оценка ВАШ после теста ходьбы на 20 м (`r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента)
-- улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м (`r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациентов)
+Из-за несоответствия следующим критериям включения/невключения в исследование не были включены `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION==0)) %>% pull(PATIENTS_AFTER_SCREENING)` пациентов
 
 ```{r}
 adsl <- raw_data %>%
