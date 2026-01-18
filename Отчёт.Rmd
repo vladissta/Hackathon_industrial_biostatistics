@@ -1,6 +1,8 @@
 ---
 title: "Отчёт"
-output: word_document
+output:
+  html_document:
+    df_print: paged
 date: "2026-01-18"
 ---
 
@@ -8,4 +10,178 @@ date: "2026-01-18"
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(gtsummary)
+library(knitr)
+library(flextable) 
+
+```
+
+##Описательная статистика для ЭКГ
+
+```{r data loading}
+
+df <- read.csv("C:/Users/User/Desktop/Biostat_HW/Hackathon_industrial_biostatistics/data/raw/team6_ecrf_wide.csv")
+
+```
+
+```{r data preparation}
+
+# # glimpse(data_raw)
+# 
+# # data_raw$ARM_factor <- factor(data_raw$ARM)
+# # print("Factor levels:")
+# # print(levels(data_raw$ARM_factor))
+# 
+# data_ECG <- data_raw %>%
+#   select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+#   rename("Номер участника" = USUBJID,
+#          "Группа" = ARM, #levels "Diclofenac" "Traumeel" 
+#          "Нарушение сердечного ритма" = V1_ECG_RHYTHM_ABN,
+#          "Изменения сегмента ST и зубца T" = V1_ECG_STT_ABN,
+#          "Наличие QT-аномалии" = V1_ECG_QT_ABN) %>%
+#   mutate(`Группа` = factor(
+#     `Группа`,
+#     levels = c("Diclofenac", "Traumeel"),
+#     labels = c("Диклофенак", "Траумель")
+#     ))
+
+```
+
+**Описание категориальных переменных:** категориальные переменные описаны абсолютными частотами (количество наблюдений) и долями, выраженными в процентах. 
+
+```{r description}
+
+# summary_table_quality <- data_ECG %>%
+#   select("Группа",
+#          "Нарушение сердечного ритма",
+#          "Изменения сегмента ST и зубца T",
+#          "Наличие QT-аномалии") %>%
+#   tbl_summary(
+#     statistic = all_categorical() ~ "{n} ({p}%)",  
+#     digits = all_categorical() ~ c(0, 1),        
+#     missing_text = "Неизвестно"
+#   ) %>%
+#   modify_header(label = "**Параметр**") %>%
+#   modify_caption("**Таблица 1. Результаты ЭКГ-исследования во время Визита 1**")
+# 
+# summary_table_quality %>%
+#   as_kable() 
+# 
+# summary_table_quality
+# 
+# ```
+# 
+# ```{r}
+# 
+# library(gtsummary)
+# library(dplyr)
+# library(gt)
+# 
+# summary_table <- data_ECG %>%
+#   select(`Группа`, `Нарушение сердечного ритма`, `Изменения сегмента ST и зубца T`, `Наличие QT-аномалии`) %>%
+#   tbl_summary(
+#     by = Группа,
+#     statistic = all_categorical() ~ "{n} ({p}%)", 
+#     digits = all_categorical() ~ c(0, 1),
+#     ) %>%
+#   modify_header(label = "**Параметр**") %>%
+#   modify_caption("**Таблица 1. Результаты ЭКГ-исследования во время Визита 1**") %>%
+#   as_gt() %>%
+#   tab_options(
+#     table.width = pct(80)
+#   )
+# 
+# summary_table
+
+```
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(stringr)
+
+n_patients <- df %>% nrow()
+
+classified_by_arm <- df %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM) %>%
+  summarise(overall = n(), .groups = "drop")
+
+tab_by_arm <- df %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(classified_by_arm, by = c("PARAM", "ARM")) %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
+
+tab_all <- df %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  mutate(ARM = "Все пациенты") %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / n_patients))
+
+tab_full <- bind_rows(tab_by_arm, tab_all) %>%
+  mutate(
+    value = recode(as.character(value),
+                   "0" = "Норма",
+                   "1" = "Отклонение от нормы"),
+    ARM = recode(as.character(ARM),
+                 "Traumeel" = "Траумель",
+                 "Diclofenac" = "Диклофенак")
+  )
+
+
+tab_wide <- tab_full %>%
+  select(PARAM, value, ARM, n_perc) %>%
+  pivot_wider(
+    names_from = ARM,
+    values_from = n_perc
+  ) %>%
+  arrange(PARAM, factor(value, levels = c("Норма", "Отклонение от нормы"))) %>%
+  mutate(PARAM = case_when(
+    str_detect(PARAM, "QT_ABN") ~ "ЭКГ: QT-аномалия",
+    str_detect(PARAM, "RHYTHM_ABN") ~ "ЭКГ: нарушение ритма",
+    str_detect(PARAM, "STT_ABN") ~ "ЭКГ: изменения ST-T",
+    TRUE ~ PARAM
+  ))
+
+```
+
+```{r}
+
+flextable(tab_wide) %>%
+
+  set_header_labels(
+    PARAM = "Параметр",
+    value = "Категория"
+  ) %>%
+  
+  bold(part = "header") %>%
+  align(part = "header", align = "center") %>%
+  align(j = c("PARAM"), part = "body", align = "left") %>%
+  align(j = "value", part = "body", align = "left") %>%
+  align(j = setdiff(names(tab_wide), c("PARAM","value")),
+        part = "body", align = "center") %>%
+  valign(part = "all", valign = "center") %>%
+  merge_v(j = c("PARAM")) %>%
+  theme_vanilla() %>%
+  autofit()
+
 ```
