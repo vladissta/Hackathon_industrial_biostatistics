@@ -1,6 +1,8 @@
 ---
 title: "Отчёт"
 output:
+  html_document:
+    df_print: paged
   officedown::rdocx_document:
     plots:
       style: Normal
@@ -26,8 +28,6 @@ output:
         no_vband: true
       mapstyles:
         Normal: ['First Paragraph', 'Author', 'Date']
-  html_document:
-    df_print: paged
 date: "2026-01-18"
 ---
 
@@ -73,72 +73,6 @@ specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet =
 
 # Характеристики пациентов
 
-## Демография
-
-Создадим отдельный датасет с антропологическими и демографическими характеристиками.
-
-```{r dm, echo=FALSE}
-adsl <- raw_data %>%
-  dplyr::select(ARM,
-                USUBJID,
-                V1_DEM_SEX,
-                V1_DEM_AGE,
-                V1_ANT_HEIGHTCM,
-                V1_ANT_WEIGHTKG,
-                V1_ANT_BMI)
-
-adsl %>% mutate(ARM = recode_factor(as.character(ARM),
-                 "Traumeel" = "Траумель",
-                 "Diclofenac" = "Диклофенак"),
-                ARM = factor(ARM, levels=c("Траумель", "Диклофенак"))
-  )%>% select(-USUBJID) %>% 
-tbl_summary(
-    by = ARM,
-    type = all_continuous() ~ "continuous2",
-    statistic = all_continuous() ~ c(
-      "{mean} ({sd})",
-      "{median} ({p25}; {p75})",
-      "{min}–{max}"
-    ),
-    label = list(
-      V1_DEM_SEX ~ "Пол",
-      V1_DEM_AGE ~ "Возраст, лет",
-      V1_ANT_HEIGHTCM ~ "Рост, см",
-      V1_ANT_WEIGHTKG ~ "Вес, кг",
-      V1_ANT_BMI ~ "ИМТ, кг/м^2"     
-    ),
-    digits = all_continuous() ~ 2,
-    missing = "no"
-  ) %>%
-  add_overall(last = TRUE) %>%
-  modify_table_body(
-    ~ .x %>%
-      mutate(
-        label = case_when(
-          row_type == "level" & str_detect(label, "^Mean \\(СО\\)$") ~ "Среднее (СО)",
-          row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
-          row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
-          row_type == "level" & str_detect(label, "F") ~ "Женский",
-          row_type == "level" & str_detect(label, "M") ~ "Мужской",
-          TRUE ~ label
-        )
-      )
-  ) %>%
-  modify_header(
-    label ~ "Показатели",
-    stat_0 ~ "Все пациенты\nN = {N}",
-  ) %>%
-  modify_footnote(everything() ~ NA) %>% 
-  bold_labels() %>%
-  as_flex_table() %>%
-  set_caption("Таблица 1. Демографические и антропометрические характеристики (популяция всех включенных пациентов)") %>% 
-  bold(part = "header") %>% 
-  theme_vanilla() %>% 
-  autofit(part = 'body')
-```
-
-По полу, возрасту и весу распределение сопоставимо: женщины преобладали в обеих группах (диклофенак — 21/29, 72%; Траумель — 19/29, 66%; всего — 40/58, 69%), мужчины составляли 28–34% (8/29, 28%; 10/29, 34%; всего 18/58, 31%).
-
 ## Критерии включения-невключения
 
 Определим субъектов, которые входят в исследуемую популяцию:
@@ -181,27 +115,98 @@ raw_data <- raw_data %>% mutate(
   select(-V1_VAS_DIFF)
 ```
 
-Таким образом, согласно критериям включения и невключения в исследуемую популяцию входит `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)) %>% pull(PATIENTS_AFTER_SCREENING)` пациентов.
 
-Из-за антропометрических и демографических показателей (ИМТ, возраст) в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента.
-
-Из-за несоответствия критерия оценки ВАШ после теста ходьбы на 20 м (менее 40 или более 80 по 100-мм шкале) в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента.
-
-Из-за улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м в дальнейший анализ не вошли `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациентов.
+Из-за несоответствия следующим критериям включения/невключения в исследование не были включены `r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(STUDY_POPULATION)==0) %>% pull(PATIENTS_AFTER_SCREENING)` пациентов:
+- антропометрические и демографические показатели (`r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_ANTRO_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента)
+- оценка ВАШ после теста ходьбы на 20 м (`r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_PAIN_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациента)
+- улучшения оценки интенсивности боли по ВАШ после теста ходьбы на 20 м (`r raw_data %>% summarise(PATIENTS_AFTER_SCREENING = sum(V1_VAS_DIFF_OK == 0)) %>%pull(PATIENTS_AFTER_SCREENING)` пациентов)
 
 ```{r}
+adsl <- raw_data %>%
+  dplyr::select(ARM,
+                USUBJID,
+                V1_DEM_SEX,
+                V1_DEM_AGE,
+                V1_ANT_HEIGHTCM,
+                V1_ANT_WEIGHTKG,
+                V1_ANT_BMI)
+
 adsl <- merge(
   adsl,
   raw_data[, c("USUBJID", "STUDY_POPULATION")],
   by = "USUBJID",
   all.x = TRUE
 )
+
 write.csv(adsl, "data/adsl_like.csv", row.names = FALSE)
 ```
 
 ```{r}
 data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
 ```
+
+## Демография
+
+Описательные статистики для демографических и антропометрических характеристик представлены на Таблице 1.
+
+```{r dm, echo=FALSE}
+data_filtered %>% mutate(ARM = recode_factor(as.character(ARM),
+                 "Traumeel" = "Траумель",
+                 "Diclofenac" = "Диклофенак"),
+                ARM = factor(ARM, levels=c("Траумель", "Диклофенак"))
+  )%>% select(V1_DEM_SEX, V1_DEM_AGE, V1_ANT_HEIGHTCM, V1_ANT_WEIGHTKG, V1_ANT_BMI, ARM) %>% 
+tbl_summary(
+    by = ARM,
+    type = all_continuous() ~ "continuous2",
+    statistic = all_continuous() ~ c(
+      "{N_nonmiss}",
+      "{mean} ({sd})",
+      "{median} ({p25}; {p75})",
+      "{min}–{max}"
+    ),
+    label = list(
+      V1_DEM_SEX ~ "Пол",
+      V1_DEM_AGE ~ "Возраст, лет",
+      V1_ANT_HEIGHTCM ~ "Рост, см",
+      V1_ANT_WEIGHTKG ~ "Масса тела, кг",
+      V1_ANT_BMI ~ "ИМТ, кг/м^2"     
+    ),
+    digits = all_continuous() ~ 2,
+    missing = "no"
+  ) %>%
+  add_overall(last = TRUE) %>%
+  modify_table_body(
+    ~ .x %>%
+      mutate(
+        label = case_when(
+          row_type == "level" & str_detect(label, "^Mean \\(СО\\)$") ~ "Среднее (СО)",
+          row_type == "level" & str_detect(label, "^Median \\(Q1; Q3\\)$|^Median \\(Q1, Q3\\)$") ~ "Медиана (Q1; Q3)",
+          row_type == "level" & str_detect(label, "Min.?–.?Max|Min.?-?.?Max|Min.?–.?Max") ~ "Минимум–Максимум",
+          row_type == "level" & str_detect(label, "F") ~ "Женский",
+          row_type == "level" & str_detect(label, "M") ~ "Мужской",
+          row_type == "level" & str_detect(label, "N Non-missing") ~ "Количество наблюдений",
+          TRUE ~ label
+        )
+      )
+  ) %>%
+  modify_header(
+    label ~ "Показатели",
+    stat_0 ~ "Все пациенты\nN = {N}",
+  ) %>%
+  modify_footnote(everything() ~ NA) %>% 
+  bold_labels() %>%
+  as_flex_table() %>%
+  set_caption("Таблица 1. Демографические и антропометрические характеристики (популяция всех включенных пациентов)") %>% 
+  bold(part = "header") %>% 
+  theme_vanilla() %>% 
+  autofit(part = 'body') %>% 
+  add_footer_lines(values = 
+    "Сокращения: СО — стандартное отклонение давление; Q1/Q3 - первая и третья квартили"
+  )
+```
+
+По полу, возрасту и массе тела распределение сопоставимо: женщины преобладали в обеих группах (Траумель — 16/23, 70%; диклофенак — 19/25, 76%; всего — 35/48, 73%), мужчины составляли 24–30% (7/23, 30%; 6/25, 24%; всего 13/48, 27%).
+
 
 # Анализ эффективности
 
@@ -696,14 +701,14 @@ results
 # Анализ безопасности
 
 ```{r}
-n_patients <- data_filtered %>% nrow()
+n_patients <- raw_data %>% nrow()
 ```
 
 ## ЭКГ
 
 ```{r ecg}
 ecg_classified_by_arm <- 
-  data_filtered %>%
+  raw_data %>%
   select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -713,7 +718,7 @@ ecg_classified_by_arm <-
   group_by(PARAM, ARM) %>%
   summarise(overall = n(), .groups = "drop")
 
-ecg_by_arm <- data_filtered %>%
+ecg_by_arm <- raw_data %>%
   dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -725,7 +730,7 @@ ecg_by_arm <- data_filtered %>%
   left_join(ecg_classified_by_arm, by = c("PARAM", "ARM")) %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
 
-ecg_all <- data_filtered %>%
+ecg_all <- raw_data %>%
   dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   mutate(ARM = "Все пациенты") %>%
   pivot_longer(
@@ -743,8 +748,8 @@ ecg_full <- bind_rows(ecg_by_arm, ecg_all) %>%
                    "0" = "Норма",
                    "1" = "Отклонение от нормы"),
     ARM = recode(as.character(ARM),
-                 "Traumeel" = "Траумель\nN = 23",
-                 "Diclofenac" = "Диклофенак\nN = 25")) %>% 
+                 "Traumeel" = "Траумель\nN = 29",
+                 "Diclofenac" = "Диклофенак\nN = 29")) %>% 
   arrange(desc(ARM))
 
 
@@ -797,7 +802,7 @@ flextable(ecg_wide) %>%
 
 ```{r oak - V1, message=FALSE, warning=FALSE}
 
-data_filtered %>% 
+raw_data %>% 
   dplyr::select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
   mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
          ARM = fct_recode(
@@ -863,7 +868,7 @@ tbl_blood
 
 ```{r vs}
 df_vit <- 
-  data_filtered %>% dplyr::select(ARM, contains('_VIT_')) %>% 
+  raw_data %>% dplyr::select(ARM, contains('_VIT_')) %>% 
   mutate(across(contains('_VIT_'), \(x) factor(x, levels=c('0','1'))),
          ARM = as.factor(ARM)) %>% 
     pivot_longer(
@@ -904,8 +909,8 @@ vit_full <- bind_rows(vit_by_arm, vit_all) %>%
                           "0" = "Норма",
                           "1" = "Отклонение от нормы"),
          ARM = dplyr::recode(as.character(ARM),
-                          "Traumeel" = "Траумель\nN = 23",
-                          "Diclofenac" = "Диклофенак\nN = 25")) %>% 
+                          "Traumeel" = "Траумель\nN = 29",
+                          "Diclofenac" = "Диклофенак\nN = 29")) %>% 
   arrange(desc(ARM))
 
 vit_wide <- vit_full %>%
