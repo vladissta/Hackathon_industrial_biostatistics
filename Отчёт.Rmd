@@ -1,6 +1,8 @@
 ---
 title: "Отчёт"
-output: word_document
+output:
+  html_document:
+    df_print: paged
 date: "2026-01-18"
 ---
 
@@ -10,7 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(gtsummary)
 library(readxl)
-library(flextable)
+library(flextable) 
+library(knitr)
+library(stringr)
 ```
 
 ```{r load, message=FALSE}
@@ -97,9 +101,93 @@ data_filtered <- raw_data %>% filter(STUDY_POPULATION == 1)
 
 # Анализ безопасности
 
+```{r}
+n_patients <- df %>% nrow()
+```
+
 ## ЭКГ
 
 ```{r ecg}
+classified_by_arm <- df %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM) %>%
+  summarise(overall = n(), .groups = "drop")
+
+tab_by_arm <- df %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(classified_by_arm, by = c("PARAM", "ARM")) %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
+
+tab_all <- df %>%
+  select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
+  mutate(ARM = "Все пациенты") %>%
+  pivot_longer(
+    cols = starts_with("V1_ECG"),
+    names_to = "PARAM",
+    values_to = "value"
+  ) %>%
+  group_by(PARAM, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / n_patients))
+
+tab_full <- bind_rows(tab_by_arm, tab_all) %>%
+  mutate(
+    value = recode(as.character(value),
+                   "0" = "Норма",
+                   "1" = "Отклонение от нормы"),
+    ARM = recode(as.character(ARM),
+                 "Traumeel" = "Траумель",
+                 "Diclofenac" = "Диклофенак")
+  )
+
+
+tab_wide <- tab_full %>%
+  select(PARAM, value, ARM, n_perc) %>%
+  pivot_wider(
+    names_from = ARM,
+    values_from = n_perc
+  ) %>%
+  arrange(PARAM, factor(value, levels = c("Норма", "Отклонение от нормы"))) %>%
+  mutate(PARAM = case_when(
+    str_detect(PARAM, "QT_ABN") ~ "QT-аномалия",
+    str_detect(PARAM, "RHYTHM_ABN") ~ "Нарушение ритма",
+    str_detect(PARAM, "STT_ABN") ~ "Изменения ST-T",
+    TRUE ~ PARAM
+  ))
+
+```
+
+```{r}
+
+flextable(tab_wide) %>%
+
+  set_header_labels(
+    PARAM = "Параметр",
+    value = "Категория"
+  ) %>%
+  
+  bold(part = "header") %>%
+  align(part = "header", align = "center") %>%
+  align(j = c("PARAM"), part = "body", align = "left") %>%
+  align(j = "value", part = "body", align = "left") %>%
+  align(j = setdiff(names(tab_wide), c("PARAM","value")),
+        part = "body", align = "center") %>%
+  valign(part = "all", valign = "center") %>%
+  merge_v(j = c("PARAM")) %>%
+  theme_vanilla() %>%
+  autofit()
 
 ```
 
@@ -163,8 +251,6 @@ tbl_blood
 ## Жизненно-важные показатели
 
 ```{r vs}
-n_patients = data_filtered %>% nrow()
-
 df_vit <- 
   data_filtered %>% select(ARM, contains('_VIT_')) %>% 
   mutate(across(contains('_VIT_'), factor, levels=c('0','1')),
