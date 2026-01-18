@@ -1,24 +1,16 @@
 ---
-title: "Отчёт"
+title: "Статистический отчет"
+subtitle: "Проспективное, многоцентровое, рандомизированное, тройное слепое, клиническое исследование с активным контролем в параллельных группах по сравнительной оценке эффективности и безопасности препарата Траумель, гель для местного применения, по сравнению с гелем диклофенака 1% при лечении боли у пациентов с остеоартрозом коленных суставов"
+authors: "Нуриева Ильнара, Левченко Диана, Царегородцев Сергей, Рризатдинова Софья, Станин Владислав"
 output:
-  html_document:
-    df_print: paged
   officedown::rdocx_document:
     plots:
       style: Normal
       align: center
-      # caption:
-      #   style: Image Caption
-      #   pre: 'Figure '
-      #   sep: ': '
     tables:
       style: Table
       layout: autofit
       width: 1
-      # caption:
-        # style: Table Caption
-        # pre: 'Table '
-        # sep: ': '
       conditional:
         first_row: true
         first_column: false
@@ -28,7 +20,9 @@ output:
         no_vband: true
       mapstyles:
         Normal: ['First Paragraph', 'Author', 'Date']
-date: "2026-01-18"
+  html_document:
+    df_print: paged
+# date: "2026-01-18"
 ---
 
 ```{r setup, include=FALSE, warning=FALSE}
@@ -897,7 +891,7 @@ flextable(ecg_wide) %>%
         part = "body", align = "center") %>%
   valign(part = "all", valign = "center") %>%
   merge_v(j = c("PARAM")) %>%
-  set_caption("Таблица Х. Показатели ЭКГ пациентов (популяция безопасности)") %>%
+  set_caption("Таблица 8. Показатели ЭКГ пациентов (популяция безопасности)") %>%
   add_footer_lines(values = 
     "Примечание: проценты рассчитаны от числа пациентов в соответствующей группе."
   ) %>%
@@ -960,7 +954,7 @@ tbl_blood <- blood %>%
   ) %>%
   bold_labels() %>%
   as_flex_table() %>% 
-  set_caption("Таблица Х. Показатели клинического анализа крови пациентов (популяция безопасности)") %>%
+  set_caption("Таблица 9. Показатели клинического анализа крови пациентов (популяция безопасности)") %>%
   add_footer_lines(values = 
     "Сокращения: СО — стандартное отклонение; Q1/Q3 — 1 и 3 квартили."
   ) %>% 
@@ -1053,7 +1047,7 @@ flextable(vit_wide) %>%
   valign(part = "all", valign = "center") %>% 
   merge_v(j = c("PARAM", "VISIT")) %>% 
   
-  set_caption("Таблица Х. Жизненно-важные показатели пациентов (популяция безопасности)") %>%
+  set_caption("Таблица 10. Жизненно-важные показатели пациентов (популяция безопасности)") %>%
   
   add_footer_lines(values = 
     "Сокращения: АД — артериальное давление; ЧДД — частота дыхательных движений; ЧСС — частота сердечных сокращений.\n\nПримечание: проценты рассчитаны от числа пациентов в соответствующей группе."
