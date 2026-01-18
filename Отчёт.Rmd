@@ -25,6 +25,27 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 # Анализ эффективности
 ## Интенсивность боли по ВАШ (в покое)
 
+```{r VAS_prep}
+prep_VAS <- raw_data %>% 
+  select(c(contains("VAS"), USUBJID, ARM)) %>% 
+  pivot_longer(cols = starts_with("V"),
+    names_to = c("VISIT", "CONDITION"),
+    names_pattern = "(V\\d)_PAIN_VAS(.*)",
+    values_to = "VALUE")
+
+bl_VAS <- prep_VAS %>% 
+  filter(VISIT=="V1") %>% 
+  mutate(BLVALUE=VALUE) %>% 
+  select(-c(VISIT, VALUE, ARM))
+
+
+final_VAS <- prep_VAS %>% 
+  left_join(bl_VAS, join_by(USUBJID, CONDITION)) %>% 
+  mutate(BLFL=ifelse(VISIT=="V1", 1, 0),
+         CHVALUE=ifelse(BLFL==0, VALUE-BLVALUE, NA_real_))
+```
+
+
 ```{r VAS_rest}
 
 ```
