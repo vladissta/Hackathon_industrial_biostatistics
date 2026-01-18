@@ -4,15 +4,18 @@ output: word_document
 date: "2026-01-18"
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(gtsummary)
 library(readxl)
+library(flextable)
 ```
 
-```{r load}
+```{r load, message=FALSE}
 raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
+specs <- read_xlsx('data/specification/team6_ecrf_data_dictionary.xlsx', sheet = 1) 
 ```
 
 # Характеристики пациентов
@@ -51,6 +54,62 @@ raw_data <- read.csv("data/original/team6_ecrf_wide.csv")
 ## Жизненно-важные показатели
 
 ```{r vs}
+n_patients = df %>% nrow()
+
+denom_by_arm <- df_vit %>%
+  group_by(PARAM, VISIT, ARM) %>%
+  summarise(overall = n(), .groups = "drop")
+
+tab_by_arm <- df_vit %>%
+  group_by(PARAM, VISIT, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  left_join(denom_by_arm,
+            by = c("PARAM","VISIT","ARM")) %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100*n/overall))
+
+tab_all <- df_vit %>%
+  mutate(ARM = "Все пациенты") %>%
+  group_by(PARAM, VISIT, ARM, value) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  mutate(n_perc = sprintf("%d (%.0f%%)", n, 100*n/n_patients))
+
+tab_full <- bind_rows(tab_by_arm, tab_all) %>%
+  mutate(value = dplyr::recode(as.character(value),
+                          "0" = "Норма",
+                          "1" = "Отклонение от нормы"),
+         ARM = dplyr::recode(as.character(ARM),
+                          "Traumeel" = "Траумель",
+                          "Diclofenac" = "Диклофенак"))
+
+tab_wide <- tab_full %>%
+  select(PARAM, VISIT, value, 
+         ARM, n_perc) %>%
+  pivot_wider(
+    names_from  = ARM,
+    values_from = n_perc) %>%
+  arrange(PARAM, VISIT, 
+          factor(value, levels = c("Норма","Отклонение от нормы"))) %>% 
+  mutate(VISIT = paste0("Визит ", VISIT))
 
 ```
+
+```{r}
+flextable(tab_wide) %>%
+
+  set_header_labels(
+    PARAM = "Параметр",
+    VISIT = "Визит",
+    value = "Категория"
+  ) %>%
+  
+  bold(part = "header") %>%
+  align(part = "header", align = "center") %>%
+  align(j = c("PARAM","VISIT"), part = "body", align = "left") %>%
+  align(j = "value", part = "body", align = "left") %>%
+  align(j = setdiff(names(tab_wide), c("PARAM","VISIT","value")),
+        part = "body", align = "center") %>%
+  valign(part = "all", valign = "center") %>%
+  merge_v(j = c("PARAM","VISIT")) %>%
+  theme_vanilla() %>%
+  autofit()
 
