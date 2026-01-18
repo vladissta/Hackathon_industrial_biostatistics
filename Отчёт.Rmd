@@ -1,6 +1,8 @@
 ---
 title: "Отчёт"
 output:
+  html_document:
+    df_print: paged
   officedown::rdocx_document:
     plots:
       style: Normal
@@ -26,8 +28,6 @@ output:
         no_vband: true
       mapstyles:
         Normal: ['First Paragraph', 'Author', 'Date']
-  html_document:
-    df_print: paged
 date: "2026-01-18"
 ---
 
@@ -181,7 +181,10 @@ tbl_summary(
   set_caption("Таблица 1. Демографические и антропометрические характеристики") %>% 
   bold(part = "header") %>% 
   theme_vanilla() %>% 
-  autofit(part = 'body')
+  autofit(part = 'body') %>% 
+  add_footer_lines(values = 
+    "Сокращения: СО — стандартное отклонение давление; Q1/Q3 - первая и третья квартили"
+  )
 ```
 
 По полу, возрасту и массе тела распределение сопоставимо: женщины преобладали в обеих группах (диклофенак — 19/25, 76%; Траумель — 16/23, 70%; всего — 35/48, 73%), мужчины составляли 24–30% (7/23, 30%; 6/25, 24%; всего 13/48, 27%).
@@ -473,14 +476,14 @@ results
 # Анализ безопасности
 
 ```{r}
-n_patients <- data_filtered %>% nrow()
+n_patients <- raw_data %>% nrow()
 ```
 
 ## ЭКГ
 
 ```{r ecg}
 ecg_classified_by_arm <- 
-  data_filtered %>%
+  raw_data %>%
   select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -490,7 +493,7 @@ ecg_classified_by_arm <-
   group_by(PARAM, ARM) %>%
   summarise(overall = n(), .groups = "drop")
 
-ecg_by_arm <- data_filtered %>%
+ecg_by_arm <- raw_data %>%
   dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   pivot_longer(
     cols = starts_with("V1_ECG"),
@@ -502,7 +505,7 @@ ecg_by_arm <- data_filtered %>%
   left_join(ecg_classified_by_arm, by = c("PARAM", "ARM")) %>%
   mutate(n_perc = sprintf("%d (%.0f%%)", n, 100 * n / overall))
 
-ecg_all <- data_filtered %>%
+ecg_all <- raw_data %>%
   dplyr::select(USUBJID, ARM, V1_ECG_RHYTHM_ABN, V1_ECG_STT_ABN, V1_ECG_QT_ABN) %>%
   mutate(ARM = "Все пациенты") %>%
   pivot_longer(
@@ -520,8 +523,8 @@ ecg_full <- bind_rows(ecg_by_arm, ecg_all) %>%
                    "0" = "Норма",
                    "1" = "Отклонение от нормы"),
     ARM = recode(as.character(ARM),
-                 "Traumeel" = "Траумель\nN = 23",
-                 "Diclofenac" = "Диклофенак\nN = 25")) %>% 
+                 "Traumeel" = "Траумель\nN = 29",
+                 "Diclofenac" = "Диклофенак\nN = 29")) %>% 
   arrange(desc(ARM))
 
 
@@ -576,7 +579,7 @@ flextable(ecg_wide) %>%
 
 ```{r oak - V1, message=FALSE, warning=FALSE}
 
-data_filtered %>% 
+raw_data %>% 
   dplyr::select(ARM, V1_CBC_HGB, V1_CBC_WBC, V1_CBC_PLT) %>% 
   mutate(V1_CBC_HGB = V1_CBC_HGB * 10, # перевод из г/дл в г/л
          ARM = fct_recode(
@@ -641,7 +644,7 @@ tbl_blood
 
 ```{r vs}
 df_vit <- 
-  data_filtered %>% dplyr::select(ARM, contains('_VIT_')) %>% 
+  raw_data %>% dplyr::select(ARM, contains('_VIT_')) %>% 
   mutate(across(contains('_VIT_'), \(x) factor(x, levels=c('0','1'))),
          ARM = as.factor(ARM)) %>% 
     pivot_longer(
@@ -682,8 +685,8 @@ vit_full <- bind_rows(vit_by_arm, vit_all) %>%
                           "0" = "Норма",
                           "1" = "Отклонение от нормы"),
          ARM = dplyr::recode(as.character(ARM),
-                          "Traumeel" = "Траумель\nN = 23",
-                          "Diclofenac" = "Диклофенак\nN = 25")) %>% 
+                          "Traumeel" = "Траумель\nN = 29",
+                          "Diclofenac" = "Диклофенак\nN = 29")) %>% 
   arrange(desc(ARM))
 
 vit_wide <- vit_full %>%
